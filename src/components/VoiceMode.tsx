@@ -267,7 +267,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ imageUrl }) => {
         <LiquidChrome
           baseColor={[0.1, 0.1, 0.1]}
           speed={1}
-          amplitude={0.5}
+          amplitude={0.6}
           interactive={true}
         />
       </div>
