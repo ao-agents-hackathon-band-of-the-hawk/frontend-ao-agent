@@ -1,0 +1,35 @@
+{
+  "colors": {
+    "background": "#f3f3f3",
+    "text": "#2c2c2c",
+    "accent": "#646cff"
+  },
+  "typography": {
+    "fontFamily": {
+      "primary": "Rubik, sans-serif"
+    },
+    "fontSize": {
+      "base": 16,
+      "h6": 13,
+      "h5": 21,
+      "h4": 34,
+      "h3": 55,
+      "h2": 89,
+      "h1": 144
+    },
+    "fontWeight": {
+      "normal": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    }
+  },
+  "spacing": {
+    "xs": 4,
+    "sm": 8,
+    "md": 16,
+    "lg": 24,
+    "xl": 32,
+    "xxl": 48
+  }
+}
