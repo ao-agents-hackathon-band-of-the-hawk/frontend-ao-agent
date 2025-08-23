@@ -229,6 +229,24 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ imageUrl }) => {
     return cleanup;
   }, []);
 
+  // Add global styles to reset any default margins/padding that might affect centering
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        height: 100% !important;
+        overflow: hidden !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   const containerStyle: React.CSSProperties = {
     height: '100vh',
     width: '100vw',
@@ -242,11 +260,19 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ imageUrl }) => {
     margin: 0,
     padding: 0,
     overflow: 'hidden',
+    // Additional properties to ensure perfect centering
+    boxSizing: 'border-box',
+    minHeight: '100vh',
   };
 
   const threejsContainerStyle: React.CSSProperties = {
     position: 'relative',
     zIndex: 2,
+    // Ensure the container itself doesn't add any offset
+    margin: 0,
+    padding: 0,
+    // Use transform to ensure perfect centering as a fallback
+    transform: 'translate3d(0, 0, 0)',
   };
 
   const liquidChromeContainerStyle: React.CSSProperties = {
