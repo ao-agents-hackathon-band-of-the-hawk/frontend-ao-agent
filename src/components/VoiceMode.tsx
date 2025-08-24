@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useTheme } from '../hooks/useTheme';
+import LiquidChrome from './LiquidChrome';
 
 interface VoiceModeProps {
   imageUrl?: string;
@@ -127,9 +128,6 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ imageUrl }) => {
     width: '160px',
     height: '160px',
     borderRadius: '50%',
-    background: imageUrl
-      ? `linear-gradient(rgba(100, 108, 255, 0.1), rgba(100, 108, 255, 0.1)), url(${imageUrl})`
-      : `linear-gradient(135deg, ${theme.colors.accent}, #8b5cf6)`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     backgroundRepeat: 'no-repeat',
@@ -139,6 +137,7 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ imageUrl }) => {
     // Removed box-shadow completely - no more glow
     transition: 'none', // Removed transitions to let the smooth interpolation handle it
     zIndex: 2,
+    overflow: 'hidden',
   };
 
   const containerStyle: React.CSSProperties = {
@@ -158,7 +157,14 @@ const VoiceMode: React.FC<VoiceModeProps> = ({ imageUrl }) => {
 
   return (
     <div style={containerStyle}>
-      <div ref={sphereRef} style={sphereStyle} />
+      <div ref={sphereRef} style={sphereStyle}>
+        <LiquidChrome
+          baseColor={[0.1, 0.1, 0.1]}
+          speed={1}
+          amplitude={0.3}
+          interactive={false}
+        />
+      </div>
     </div>
   );
 };
