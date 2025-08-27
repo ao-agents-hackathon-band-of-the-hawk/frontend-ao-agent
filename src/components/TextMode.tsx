@@ -1,5 +1,5 @@
 // src/components/TextMode.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '../hooks/useTheme';
 import TextBox from './TextBox';
@@ -12,6 +12,7 @@ interface TextModeProps {
 
 const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSize, imageUrl }) => {
   const theme = useTheme();
+  const [textareaHeight, setTextareaHeight] = useState(24); // Initial single line height
 
   const sphereStyle: React.CSSProperties = {
     borderRadius: '50%',
@@ -23,6 +24,15 @@ const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSiz
     backgroundRepeat: 'no-repeat',
     position: 'relative',
     zIndex: 2,
+  };
+
+  // Calculate dynamic container height based on textarea height
+  const containerHeight = transitionStage === 'text' && textareaHeight > 24 
+    ? Math.max(125, textareaHeight + 50) // Only expand if there's actual content
+    : 125; // Original height when empty or not in text mode
+
+  const handleTextareaHeightChange = (height: number) => {
+    setTextareaHeight(height);
   };
 
   return (
@@ -47,12 +57,12 @@ const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSiz
         }}
         animate={{ 
           width: [transitionStartSize, 118, 516], 
-          height: [transitionStartSize, 118, 125], 
+          height: [transitionStartSize, 118, containerHeight], 
           borderRadius: ['50%', '50%', '62px'],
           borderWidth: [0, 2, 2],
         }}
         transition={{
-          duration: 1.8,
+          duration: transitionStage === 'expanding' ? 1.8 : 0, // No animation for text resizing
           times: [0, 0.4, 1],
           ease: [0.2, 0, 0.1, 1],
         }}
@@ -63,33 +73,39 @@ const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSiz
           background: transitionStage === 'text' ? theme.colors.background : 'transparent',
           zIndex: 1,
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           padding: transitionStage === 'text' ? '0 38px' : '0',
+          height: transitionStage === 'text' ? containerHeight : undefined,
         }}
       >
         {/* Text input area - appears smoothly */}
         <TextBox 
           isVisible={transitionStage === 'text'} 
-          marginRight="130px" 
+          marginRight="130px"
+          onHeightChange={handleTextareaHeightChange}
         />
       </motion.div>
 
-      {/* Shrinking and moving sphere - starts from current voice scale */}
+      {/* Shrinking and moving sphere - starts from current voice scale and adjusts position based on textarea height */}
       <motion.div
         initial={{ 
           width: transitionStartSize,
           height: transitionStartSize,
           x: 0,
+          y: 0,
           scale: 1, // Already factored into width/height
         }}
         animate={{ 
           width: [transitionStartSize, 100, 100], 
           height: [transitionStartSize, 100, 100],
           x: [0, 0, 196], // Adjusted for larger pill 
+          y: [0, 0, transitionStage === 'text' && textareaHeight > 24 
+            ? Math.max(0, (containerHeight - 125) / 2) 
+            : 0], // Only move down if textarea has expanded
           scale: 1, // Keep scale at 1 since we're animating width/height directly
         }}
         transition={{
-          duration: 1.8,
+          duration: transitionStage === 'expanding' ? 1.8 : 0, // No animation for text resizing
           times: [0, 0.4, 1],
           ease: [0.2, 0, 0.1, 1],
         }}
