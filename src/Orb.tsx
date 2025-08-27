@@ -1,4 +1,4 @@
-// src/Orb.tsx (updated for pulsing)
+// src/Orb.tsx (updated pow to 2.0 for pointier top)
 import { useEffect, useRef } from "react";
 import { Renderer, Program, Mesh, Triangle, Vec3, Vec2 } from "ogl";
 import { MotionValue } from 'framer-motion'
@@ -150,13 +150,9 @@ export default function Orb({
       uv.x /= scaleX;
       uv.y /= scaleY;
       float ynorm = (uv.y + 1.0) / 2.0; // 0 at bottom, 1 at top
-      uv.x *= 1.0 - deform * ynorm; // Compress x at top
+      uv.x *= 1.0 - deform * pow(ynorm, 2.0); // Compress x at top, more pronounced at very top
 
-      // Break open from top
-      float openWidth = breakProgress * 2.0; // Adjust multiplier for wider/narrower open
-      if (uv.y > 0.0 && abs(uv.x) < openWidth * (1.0 - uv.y)) {
-        return vec4(0.0);
-      }
+      // Removed break open logic as it's not used in this version
 
       vec3 color1 = adjustHue(baseColor1, hue);
       vec3 color2 = adjustHue(baseColor2, hue);
@@ -242,10 +238,10 @@ export default function Orb({
         hoverIntensity: { value: 0 }, // Always 0, no hover effects
         position: { value: new Vec2(0, typeof positionY === 'number' ? positionY : positionY.get()) },
         deform: { value: typeof deform === 'number' ? deform : deform.get() },
-        scaleX: { value: typeof scaleX === 'number' ? scaleX : scaleX.get() },
-        scaleY: { value: typeof scaleY === 'number' ? scaleY : scaleY.get() },
+        scaleX: { value: typeof scaleX === 'number' ? scaleX : scaleX?.get() ?? 1 },
+        scaleY: { value: typeof scaleY === 'number' ? scaleY : scaleY?.get() ?? 1 },
         opacity: { value: typeof opacity === 'number' ? opacity : opacity.get() },
-        breakProgress: { value: typeof breakProgress === 'number' ? breakProgress : breakProgress.get() },
+        breakProgress: { value: typeof breakProgress === 'number' ? breakProgress : breakProgress?.get() ?? 0 },
         pulseIntensity: { value: pulseIntensity },
       },
     });
@@ -269,7 +265,6 @@ export default function Orb({
     window.addEventListener("resize", resize);
     resize();
 
-    
     let currentRot = 0;
 
     // All mouse event handlers removed - no hover functionality
@@ -289,10 +284,10 @@ export default function Orb({
 
       program.uniforms.position.value.y = typeof positionY === 'number' ? positionY : positionY.get();
       program.uniforms.deform.value = typeof deform === 'number' ? deform : deform.get();
-      program.uniforms.scaleX.value = typeof scaleX === 'number' ? scaleX : scaleX.get();
-      program.uniforms.scaleY.value = typeof scaleY === 'number' ? scaleY : scaleY.get();
+      program.uniforms.scaleX.value = typeof scaleX === 'number' ? scaleX : scaleX?.get() ?? 1;
+      program.uniforms.scaleY.value = typeof scaleY === 'number' ? scaleY : scaleY?.get() ?? 1;
       program.uniforms.opacity.value = typeof opacity === 'number' ? opacity : opacity.get();
-      program.uniforms.breakProgress.value = typeof breakProgress === 'number' ? breakProgress : breakProgress.get();
+      program.uniforms.breakProgress.value = typeof breakProgress === 'number' ? breakProgress : breakProgress?.get() ?? 0;
       program.uniforms.pulseIntensity.value = pulseIntensity;
 
       renderer.render({ scene: mesh });

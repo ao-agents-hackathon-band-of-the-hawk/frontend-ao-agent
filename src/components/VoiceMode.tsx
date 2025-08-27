@@ -1,22 +1,27 @@
 import { useEffect, useRef } from 'react';
 import { useTheme } from '../hooks/useTheme';
-import Orb from '../Orb';
 
-const VoiceMode: React.FC = () => {
+interface VoiceModeProps {
+  imageUrl?: string;
+}
+
+const VoiceMode: React.FC<VoiceModeProps> = ({ imageUrl }) => {
   const theme = useTheme();
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const microphoneRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const animationRef = useRef<number | undefined>(undefined);
-  const orbRef = useRef<HTMLDivElement>(null);
+  const sphereRef = useRef<HTMLDivElement>(null);
   const lastUpdateTimeRef = useRef<number>(0);
   const breathePhaseRef = useRef<number>(0);
   
-  // Smoothing variables for gradual voice activity scaling
+  // Add smoothing variables for gradual voice activity scaling
   const currentScaleRef = useRef<number>(1);
   const targetScaleRef = useRef<number>(1);
-  const currentHoverIntensityRef = useRef<number>(0);
-  const targetHoverIntensityRef = useRef<number>(0);
+  const currentBrightnessRef = useRef<number>(1);
+  const targetBrightnessRef = useRef<number>(1);
+  const currentSaturateRef = useRef<number>(1);
+  const targetSaturateRef = useRef<number>(1);
 
   const startListening = async () => {
     try {
@@ -33,7 +38,7 @@ const VoiceMode: React.FC = () => {
       const dataArray = new Uint8Array(bufferLength);
 
       const checkAudioLevel = () => {
-        if (analyserRef.current && orbRef.current) {
+        if (analyserRef.current && sphereRef.current) {
           analyserRef.current.getByteFrequencyData(dataArray);
 
           // Focus on voice frequency range (85Hz to 3000Hz)
@@ -56,29 +61,34 @@ const VoiceMode: React.FC = () => {
           const deltaTime = (now - lastUpdateTimeRef.current) / 1000;
           lastUpdateTimeRef.current = now;
 
-          // Smoothing factor for gradual transitions
+          // Smoothing factor for gradual transitions (0-1, higher = smoother but slower)
           const smoothingFactor = 0.1;
 
           if (normalizedLevel > 0) {
             // Voice active: set target values for smooth scaling
-            targetScaleRef.current = 1.1 + normalizedLevel * 0.3;
-            targetHoverIntensityRef.current = 0.2 + normalizedLevel * 0.6;
+            targetScaleRef.current = 1.1 + normalizedLevel * 0.2; // Reduced by 25% for more subtle voice activity
+            targetBrightnessRef.current = 1 + normalizedLevel * 0.2;
+            targetSaturateRef.current = 1 + normalizedLevel * 0.4;
             // Reset breathe phase when voice starts
             breathePhaseRef.current = 0;
           } else {
-            // Idle: enhanced breathing animation
-            breathePhaseRef.current += deltaTime * Math.PI * 2 / 8; // 8s period
-            const breatheAmplitude = 0.08 + Math.sin(breathePhaseRef.current * 0.3) * 0.03;
+            // Idle: enhanced breathing animation with larger scale changes
+            breathePhaseRef.current += deltaTime * Math.PI * 2 / 8; // Slightly faster 8s period
+            const breatheAmplitude = 0.08 + Math.sin(breathePhaseRef.current * 0.3) * 0.03; // Much larger amplitude: 0.05 to 0.11
             targetScaleRef.current = 1 + Math.abs(Math.sin(breathePhaseRef.current)) * breatheAmplitude;
-            targetHoverIntensityRef.current = 0.1 + Math.sin(breathePhaseRef.current) * 0.05;
+            targetBrightnessRef.current = 1 + Math.sin(breathePhaseRef.current) * 0.05;
+            targetSaturateRef.current = 1;
           }
 
           // Smoothly interpolate current values toward targets
           currentScaleRef.current += (targetScaleRef.current - currentScaleRef.current) * smoothingFactor;
-          currentHoverIntensityRef.current += (targetHoverIntensityRef.current - currentHoverIntensityRef.current) * smoothingFactor;
+          currentBrightnessRef.current += (targetBrightnessRef.current - currentBrightnessRef.current) * smoothingFactor;
+          currentSaturateRef.current += (targetSaturateRef.current - currentSaturateRef.current) * smoothingFactor;
 
-          // Apply smoothed styles
-          orbRef.current.style.transform = `scale(${currentScaleRef.current})`;
+          // Apply smoothed styles directly for performance
+          sphereRef.current.style.transform = `scale(${currentScaleRef.current})`;
+          sphereRef.current.style.filter = `brightness(${currentBrightnessRef.current}) saturate(${currentSaturateRef.current})`;
+          // Removed box-shadow completely (no more glow effect)
         }
 
         animationRef.current = requestAnimationFrame(checkAudioLevel);
@@ -113,6 +123,24 @@ const VoiceMode: React.FC = () => {
     };
   }, []);
 
+  const sphereStyle: React.CSSProperties = {
+    width: '160px',
+    height: '160px',
+    borderRadius: '50%',
+    background: imageUrl
+      ? `linear-gradient(rgba(100, 108, 255, 0.1), rgba(100, 108, 255, 0.1)), url(${imageUrl})`
+      : `linear-gradient(135deg, ${theme.colors.accent}, #8b5cf6)`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
+    position: 'relative',
+    transform: 'scale(1)',
+    filter: 'brightness(1) saturate(1)',
+    // Removed box-shadow completely - no more glow
+    transition: 'none', // Removed transitions to let the smooth interpolation handle it
+    zIndex: 2,
+  };
+
   const containerStyle: React.CSSProperties = {
     height: '100vh',
     width: '100vw',
@@ -128,24 +156,9 @@ const VoiceMode: React.FC = () => {
     overflow: 'hidden',
   };
 
-  const orbContainerStyle: React.CSSProperties = {
-    width: '300px',
-    height: '300px',
-    position: 'relative',
-    transform: 'scale(1)',
-    transition: 'none',
-  };
-
   return (
     <div style={containerStyle}>
-      <div ref={orbRef} style={orbContainerStyle}>
-        <Orb
-          hue={5}
-          hoverIntensity={currentHoverIntensityRef.current}
-          rotateOnHover={false}
-          forceHoverState={false}
-        />
-      </div>
+      <div ref={sphereRef} style={sphereStyle} />
     </div>
   );
 };
