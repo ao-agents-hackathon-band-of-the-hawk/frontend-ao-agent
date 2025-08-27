@@ -32,7 +32,7 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight }) => {
           outline: 'none',
           background: 'transparent',
           color: theme.colors.text,
-          fontSize: '25px',
+          fontSize: '20px',
           fontFamily: theme.typography.fontFamily.primary,
         }}
       />
