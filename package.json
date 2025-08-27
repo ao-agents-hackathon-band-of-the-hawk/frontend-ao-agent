@@ -10,8 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-spring/web": "^10.0.1",
     "@react-three/drei": "^10.7.3",
     "@react-three/fiber": "^9.3.0",
+    "framer": "^2.4.1",
+    "framer-motion": "^12.23.12",
     "ogl": "^1.0.11",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

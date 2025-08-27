@@ -1,5 +1,7 @@
+// src/Orb.tsx (updated for pulsing)
 import { useEffect, useRef } from "react";
-import { Renderer, Program, Mesh, Triangle, Vec3 } from "ogl";
+import { Renderer, Program, Mesh, Triangle, Vec3, Vec2 } from "ogl";
+import { MotionValue } from 'framer-motion'
 
 import './Orb.css';
 
@@ -8,6 +10,13 @@ interface OrbProps {
   hoverIntensity?: number;
   rotateOnHover?: boolean;
   forceHoverState?: boolean;
+  positionY?: number | MotionValue<number>;
+  deform?: number | MotionValue<number>;
+  scaleX?: number | MotionValue<number>;
+  scaleY?: number | MotionValue<number>;
+  opacity?: number | MotionValue<number>;
+  breakProgress?: number | MotionValue<number>;
+  pulseIntensity?: number;
 }
 
 export default function Orb({
@@ -15,6 +24,13 @@ export default function Orb({
   hoverIntensity = 0.2,
   rotateOnHover = true,
   forceHoverState = false,
+  positionY = 0,
+  deform = 0,
+  scaleX = 1,
+  scaleY = 1,
+  opacity = 1,
+  breakProgress = 0,
+  pulseIntensity = 0,
 }: OrbProps) {
   const ctnDom = useRef<HTMLDivElement>(null);
 
@@ -38,6 +54,13 @@ export default function Orb({
     uniform float hover;
     uniform float rot;
     uniform float hoverIntensity;
+    uniform vec2 position;
+    uniform float deform;
+    uniform float scaleX;
+    uniform float scaleY;
+    uniform float opacity;
+    uniform float breakProgress;
+    uniform float pulseIntensity;
     varying vec2 vUv;
 
     vec3 rgb2yiq(vec3 c) {
@@ -123,6 +146,18 @@ export default function Orb({
     }
     
     vec4 draw(vec2 uv) {
+      uv -= position;
+      uv.x /= scaleX;
+      uv.y /= scaleY;
+      float ynorm = (uv.y + 1.0) / 2.0; // 0 at bottom, 1 at top
+      uv.x *= 1.0 - deform * ynorm; // Compress x at top
+
+      // Break open from top
+      float openWidth = breakProgress * 2.0; // Adjust multiplier for wider/narrower open
+      if (uv.y > 0.0 && abs(uv.x) < openWidth * (1.0 - uv.y)) {
+        return vec4(0.0);
+      }
+
       vec3 color1 = adjustHue(baseColor1, hue);
       vec3 color2 = adjustHue(baseColor2, hue);
       vec3 color3 = adjustHue(baseColor3, hue);
@@ -151,6 +186,7 @@ export default function Orb({
       col = mix(color3, col, v0);
       col = (col + v1) * v2 * v3;
       col *= brightness; // Apply brightness multiplier
+      col *= 1.0 + pulseIntensity * (sin(iTime * 5.0) * 0.5 + 0.5);
       col = clamp(col, 0.0, 1.0);
       
       return extractAlpha(col);
@@ -174,7 +210,7 @@ export default function Orb({
     void main() {
       vec2 fragCoord = vUv * iResolution.xy;
       vec4 col = mainImage(fragCoord);
-      gl_FragColor = vec4(col.rgb * col.a, col.a);
+      gl_FragColor = vec4(col.rgb * col.a * opacity, col.a * opacity);
     }
   `;
 
@@ -204,6 +240,13 @@ export default function Orb({
         hover: { value: 0 }, // Always 0, no hover effects
         rot: { value: 0 },
         hoverIntensity: { value: 0 }, // Always 0, no hover effects
+        position: { value: new Vec2(0, typeof positionY === 'number' ? positionY : positionY.get()) },
+        deform: { value: typeof deform === 'number' ? deform : deform.get() },
+        scaleX: { value: typeof scaleX === 'number' ? scaleX : scaleX.get() },
+        scaleY: { value: typeof scaleY === 'number' ? scaleY : scaleY.get() },
+        opacity: { value: typeof opacity === 'number' ? opacity : opacity.get() },
+        breakProgress: { value: typeof breakProgress === 'number' ? breakProgress : breakProgress.get() },
+        pulseIntensity: { value: pulseIntensity },
       },
     });
 
@@ -244,6 +287,14 @@ export default function Orb({
       // No rotation logic since no hover
       program.uniforms.rot.value = currentRot;
 
+      program.uniforms.position.value.y = typeof positionY === 'number' ? positionY : positionY.get();
+      program.uniforms.deform.value = typeof deform === 'number' ? deform : deform.get();
+      program.uniforms.scaleX.value = typeof scaleX === 'number' ? scaleX : scaleX.get();
+      program.uniforms.scaleY.value = typeof scaleY === 'number' ? scaleY : scaleY.get();
+      program.uniforms.opacity.value = typeof opacity === 'number' ? opacity : opacity.get();
+      program.uniforms.breakProgress.value = typeof breakProgress === 'number' ? breakProgress : breakProgress.get();
+      program.uniforms.pulseIntensity.value = pulseIntensity;
+
       renderer.render({ scene: mesh });
     };
     rafId = requestAnimationFrame(update);
@@ -251,11 +302,10 @@ export default function Orb({
     return () => {
       cancelAnimationFrame(rafId);
       window.removeEventListener("resize", resize);
-      // No mouse event listeners to remove
       container.removeChild(gl.canvas);
       gl.getExtension("WEBGL_lose_context")?.loseContext();
     };
-  }, [hue, hoverIntensity, rotateOnHover, forceHoverState]);
+  }, [hue, hoverIntensity, rotateOnHover, forceHoverState, pulseIntensity]);
 
   return <div ref={ctnDom} className="orb-container" />;
 }
