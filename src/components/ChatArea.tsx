@@ -25,7 +25,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   const baseWidth = 800; // 645 * 1.2
   const baseHeight = 100; // 125 * 0.9
   const sphereSize = 80;
-  const sphereX = 348; // 259 * 1.2
+  const sphereX = 349; // 259 * 1.2
   const paddingX = 56.4; // 47 * 1.2
   const textMarginRight = '74.4'; // 62 * 1.2
 
