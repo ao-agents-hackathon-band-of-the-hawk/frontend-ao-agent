@@ -197,7 +197,7 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
     }
 
     // Calculate new height based on content
-    const newHeight = Math.min(textarea.scrollHeight, 400);
+    const newHeight = Math.min(textarea.scrollHeight, 425);
     textarea.style.height = `${newHeight}px`;
     
     if (newHeight !== textareaHeight) {
@@ -246,7 +246,7 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
             width: '100%',
             height: '24px',
             minHeight: '24px',
-            maxHeight: '400px',
+            maxHeight: '425px',
             border: 'none',
             outline: 'none',
             background: 'transparent',
