@@ -59,24 +59,12 @@ function App() {
       />
       
       {/* Debug controls - enhanced for voice activity troubleshooting */}
-      <div style={{
-        position: 'fixed',
-        top: '20px',
-        left: '20px',
-        zIndex: 1000,
-        background: 'rgba(0, 0, 0, 0.8)',
-        color: 'white',
-        padding: '12px',
-        borderRadius: '8px',
-        fontSize: '12px',
-        fontFamily: 'monospace',
-        maxWidth: '300px'
-      }}>
+      <div className="fixed top-5 left-5 z-[1000] bg-black/80 text-white p-3 rounded-lg text-xs font-mono max-w-[300px]">
         <div>Press SPACE or T to toggle modes</div>
         <div>Status: {debugInfo}</div>
         <div>Mode: {isTextMode ? 'Text' : 'Voice'}</div>
         {!isTextMode && (
-          <div style={{ marginTop: '8px', fontSize: '11px', opacity: '0.8' }}>
+          <div className="mt-2 text-[11px] opacity-80">
             Voice activity should scale the sphere.<br/>
             Check browser console for scale values!<br/>
             Try speaking loudly into your microphone.
@@ -90,16 +78,7 @@ function App() {
               return newMode;
             });
           }}
-          style={{
-            marginTop: '8px',
-            padding: '4px 8px',
-            background: '#DBE0C3',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '12px'
-          }}
+          className="mt-2 px-2 py-1 bg-accent text-white border-none rounded cursor-pointer text-xs"
         >
           Toggle Mode
         </button>

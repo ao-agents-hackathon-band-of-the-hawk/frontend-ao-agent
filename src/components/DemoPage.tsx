@@ -4,10 +4,10 @@ const DemoPage = () => {
   const theme = useTheme()
 
   return (
-    <div className="container">
+    <div className="container-custom">
       <div className="text-center mb-xxl">
         <h1>Typography Demo</h1>
-        <p>Fibonacci Font Scale with Rubik Font Family</p>
+        <p>Fibonacci Font Scale with Theme Font Family</p>
       </div>
 
       <section className="mb-xxl">
@@ -26,19 +26,13 @@ const DemoPage = () => {
 
       <section className="mb-xxl">
         <h3>Current Theme Configuration</h3>
-        <div style={{ 
-          background: 'rgba(255, 255, 255, 0.1)', 
-          padding: 'var(--spacing-lg)', 
-          borderRadius: 'var(--spacing-sm)',
-          fontFamily: 'monospace',
-          fontSize: '14px'
-        }}>
+        <div className="bg-white/10 p-lg rounded-sm font-mono text-sm">
           <h6>Colors:</h6>
           <p>Background: {theme.colors.background}</p>
           <p>Text: {theme.colors.text}</p>
           <p>Accent: {theme.colors.accent}</p>
           
-          <h6 style={{ marginTop: 'var(--spacing-md)' }}>Font Sizes (Fibonacci):</h6>
+          <h6 className="mt-md">Font Sizes (Fibonacci):</h6>
           <p>Base: {theme.typography.fontSize.base}px</p>
           <p>H6: {theme.typography.fontSize.h6}px</p>
           <p>H5: {theme.typography.fontSize.h5}px</p>
@@ -53,33 +47,28 @@ const DemoPage = () => {
         <h4>Sample Content</h4>
         <p>
           This is a paragraph of body text using the base font size of {theme.typography.fontSize.base}px. 
-          The Rubik font family provides excellent readability and a modern appearance. 
-          You can easily modify the theme by editing the <code>theme.json</code> file.
+          The theme font family provides excellent readability and a modern appearance. 
+          You can easily modify the theme by editing the <code className="bg-white/20 px-1 rounded">theme.json</code> file.
         </p>
         
         <h5>Interactive Elements</h5>
         <p>Here are some interactive elements styled with our theme:</p>
-        <button style={{ marginRight: 'var(--spacing-md)' }}>
-          Primary Button
-        </button>
-        <a href="#" style={{ marginLeft: 'var(--spacing-md)' }}>
-          Sample Link
-        </a>
+        <div className="flex items-center gap-md">
+          <button>Primary Button</button>
+          <a href="#" className="ml-md">Sample Link</a>
+        </div>
       </section>
 
       <section>
         <h5>How to Customize</h5>
         <p>
-          To change the theme, simply edit the <code>theme.json</code> file in your project root:
+          To change the theme, simply edit the <code className="bg-white/20 px-1 rounded">theme.json</code> file in your project root:
         </p>
-        <ul style={{ 
-          paddingLeft: 'var(--spacing-lg)', 
-          marginBottom: 'var(--spacing-md)' 
-        }}>
-          <li>Change <code>colors.background</code> to modify the background color</li>
-          <li>Adjust font sizes in <code>typography.fontSize</code></li>
-          <li>Modify spacing values in the <code>spacing</code> object</li>
-          <li>Update font weights in <code>typography.fontWeight</code></li>
+        <ul className="pl-lg mb-md list-disc">
+          <li>Change <code className="bg-white/20 px-1 rounded">colors.background</code> to modify the background color</li>
+          <li>Adjust font sizes in <code className="bg-white/20 px-1 rounded">typography.fontSize</code></li>
+          <li>Modify spacing values in the <code className="bg-white/20 px-1 rounded">spacing</code> object</li>
+          <li>Update font weights in <code className="bg-white/20 px-1 rounded">typography.fontWeight</code></li>
         </ul>
         <p>
           The changes will be automatically applied when you save the file and the page refreshes.

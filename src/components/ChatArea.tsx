@@ -61,6 +61,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
         justifyContent: 'flex-end',
         height: '100%',
         width: '100%',
+        fontFamily: theme.typography.fontFamily.primary, // Ensure font inheritance
       }}
     >
       <div
@@ -84,6 +85,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({
               padding: '10px 15px',
               borderRadius: '15px',
               maxWidth: '80%',
+              fontFamily: theme.typography.fontFamily.primary, // Explicit font for chat bubbles
+              fontSize: `${theme.typography.fontSize.base}px`,
+              lineHeight: '1.5',
             }}
           >
             {msg.content}

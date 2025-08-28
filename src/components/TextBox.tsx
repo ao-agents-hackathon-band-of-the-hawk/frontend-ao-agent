@@ -221,9 +221,12 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
   };
 
   const handlePaste = () => {
-    setTimeout(() => {
-      adjustTextareaHeight();
-    }, 0);
+    // Use requestAnimationFrame instead of setTimeout to ensure DOM has updated
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        adjustTextareaHeight();
+      });
+    });
   };
 
   return (
