@@ -234,7 +234,7 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
             outline: 'none',
             background: 'transparent',
             color: theme.colors.text,
-            fontSize: '20px',
+            fontSize: '18px',
             fontFamily: theme.typography.fontFamily.primary,
             lineHeight: '24px', // Match height exactly
             resize: 'none',
