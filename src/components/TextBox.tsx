@@ -16,6 +16,7 @@ interface CustomScrollbarProps {
 
 const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme }) => {
   const [scrollPercent, setScrollPercent] = useState(0);
+  const [thumbHeight, setThumbHeight] = useState(30); // Dynamic thumb height percentage
   const [isVisible, setIsVisible] = useState(false);
   const scrollbarRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
@@ -23,7 +24,7 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme }) =
   // SCROLLBAR CUSTOMIZATION PARAMETERS - CHANGE THESE
   const scrollbarConfig = {
     // Position (relative to textarea)
-    right: '-30px',        // Distance from right edge
+    right: '-48px',        // Distance from right edge
     top: '25px',         // Distance from top
     bottom: '130px',      // Distance from bottom
     
@@ -53,8 +54,15 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme }) =
       }
       
       setIsVisible(true);
+      
+      // Calculate scroll percentage
       const percent = scrollTop / maxScroll;
       setScrollPercent(percent);
+      
+      // Calculate dynamic thumb height based on visible content ratio
+      const visibleRatio = clientHeight / scrollHeight;
+      const newThumbHeight = Math.max(15, visibleRatio * 100); // Minimum 15% height
+      setThumbHeight(newThumbHeight);
     };
 
     textarea.addEventListener('scroll', handleScroll);
@@ -71,10 +79,18 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme }) =
   const handleScrollbarClick = (e: React.MouseEvent) => {
     const textarea = targetRef.current;
     const scrollbar = scrollbarRef.current;
-    if (!textarea || !scrollbar) return;
+    const thumb = thumbRef.current;
+    if (!textarea || !scrollbar || !thumb) return;
 
     const rect = scrollbar.getBoundingClientRect();
+    const thumbRect = thumb.getBoundingClientRect();
     const clickY = e.clientY - rect.top;
+    
+    // Check if click is on the thumb itself
+    if (clickY >= (thumbRect.top - rect.top) && clickY <= (thumbRect.bottom - rect.top)) {
+      return; // Don't scroll if clicking on thumb
+    }
+    
     const scrollbarHeight = rect.height;
     const clickPercent = clickY / scrollbarHeight;
     
@@ -90,12 +106,13 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme }) =
 
     const startY = e.clientY;
     const startScrollTop = textarea.scrollTop;
-    const scrollbarHeight = scrollbar.getBoundingClientRect().height;
+    const scrollbarRect = scrollbar.getBoundingClientRect();
+    const availableSpace = scrollbarRect.height * (100 - thumbHeight) / 100; // Available space for thumb movement
     const maxScroll = textarea.scrollHeight - textarea.clientHeight;
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const deltaY = moveEvent.clientY - startY;
-      const deltaPercent = deltaY / scrollbarHeight;
+      const deltaPercent = deltaY / availableSpace; // Use available space instead of full height
       const newScrollTop = startScrollTop + (deltaPercent * maxScroll);
       
       textarea.scrollTop = Math.max(0, Math.min(maxScroll, newScrollTop));
@@ -138,10 +155,10 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme }) =
         onMouseDown={handleThumbMouseDown}
         style={{
           position: 'absolute',
-          top: `${scrollPercent * 70}%`,
+          top: `${scrollPercent * (100 - thumbHeight)}%`,
           width: '100%',
           minHeight: scrollbarConfig.thumbMinHeight,
-          height: '30%',
+          height: `${thumbHeight}%`,
           background: scrollbarConfig.thumbBg,
           borderRadius: scrollbarConfig.thumbRadius,
           cursor: 'pointer',
