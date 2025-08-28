@@ -13,6 +13,7 @@ interface TextModeProps {
 const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSize, imageUrl }) => {
   const theme = useTheme();
   const [textareaHeight, setTextareaHeight] = useState(24); // Initial single line height
+  const [isInitialTransition, setIsInitialTransition] = useState(true);
 
   const sphereStyle: React.CSSProperties = {
     borderRadius: '50%',
@@ -33,7 +34,18 @@ const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSiz
 
   const handleTextareaHeightChange = (height: number) => {
     setTextareaHeight(height);
+    // Mark that we're past the initial transition
+    if (isInitialTransition && transitionStage === 'text') {
+      setIsInitialTransition(false);
+    }
   };
+
+  // Reset initial transition flag when transition stage changes
+  React.useEffect(() => {
+    if (transitionStage === 'expanding') {
+      setIsInitialTransition(true);
+    }
+  }, [transitionStage]);
 
   return (
     <motion.div
@@ -60,7 +72,8 @@ const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSiz
           borderRadius: ['50%', '50%', '62px'],
         }}
         transition={{
-          duration: transitionStage === 'expanding' ? 1.8 : (transitionStage === 'text' ? 0.2 : 0),
+          duration: transitionStage === 'expanding' ? 1.8 : 
+                   (transitionStage === 'text' && isInitialTransition ? 0.2 : 0), // Instant after initial transition
           times: [0, 0.4, 1],
           ease: [0.2, 0, 0.1, 1],
         }}
@@ -126,7 +139,8 @@ const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSiz
           scale: 1, // Keep scale at 1 since we're animating width/height directly
         }}
         transition={{
-          duration: transitionStage === 'expanding' ? 1.8 : 0, // No animation for text resizing
+          duration: transitionStage === 'expanding' ? 1.8 : 
+                   (transitionStage === 'text' && isInitialTransition ? 0 : 0), // Instant sphere movement after initial transition
           times: [0, 0.4, 1],
           ease: [0.2, 0, 0.1, 1],
         }}

@@ -194,10 +194,10 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
   };
 
   const handlePaste = () => {
-    // Immediate height adjustment for smooth expansion
-    requestAnimationFrame(() => {
+    // Immediate height adjustment for smooth expansion - remove requestAnimationFrame delay
+    setTimeout(() => {
       adjustTextareaHeight();
-    });
+    }, 0); // Use setTimeout with 0 instead of requestAnimationFrame for more immediate execution
   };
 
   return (
