@@ -167,17 +167,19 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
     const textarea = textareaRef.current;
     if (!textarea) return;
 
+    // Reset height to get proper scrollHeight
+    textarea.style.height = '24px'; // Always reset to single line height first
+    
     if (textarea.value.trim() === '') {
-      const originalHeight = 24;
-      textarea.style.height = `${originalHeight}px`;
-      if (textareaHeight !== originalHeight) {
-        setTextareaHeight(originalHeight);
-        onHeightChange?.(originalHeight);
+      // Keep at single line height when empty
+      if (textareaHeight !== 24) {
+        setTextareaHeight(24);
+        onHeightChange?.(24);
       }
       return;
     }
 
-    textarea.style.height = 'auto';
+    // Calculate new height based on content
     const newHeight = Math.min(textarea.scrollHeight, 400);
     textarea.style.height = `${newHeight}px`;
     
@@ -192,30 +194,11 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
   };
 
   const handlePaste = () => {
-    setTimeout(() => {
+    // Immediate height adjustment for smooth expansion
+    requestAnimationFrame(() => {
       adjustTextareaHeight();
-    }, 0);
+    });
   };
-
-  const textareaStyles: React.CSSProperties = {
-  width: '100%',
-  height: '24px',
-  minHeight: '24px',
-  maxHeight: '400px',
-  border: 'none',
-  outline: 'none',
-  background: 'transparent',
-  color: theme.colors.text,
-  fontSize: '20px',
-  fontFamily: theme.typography.fontFamily.primary,
-  resize: 'none',
-  overflow: 'auto',
-  lineHeight: '1.2',
-  transition: 'none',
-  paddingRight: '45px',
-  scrollbarWidth: 'none',
-  msOverflowStyle: 'none',
-};
 
   return (
     <motion.div
@@ -231,13 +214,42 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
         position: 'relative',
       }}
     >
-      <textarea
-        ref={textareaRef}
-        placeholder="Type your message..."
-        onInput={handleInput}
-        onPaste={handlePaste}
-        style={textareaStyles}
-      />
+      <div style={{
+        width: '100%',
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+      }}>
+        <textarea
+          ref={textareaRef}
+          placeholder="Type your message..."
+          onInput={handleInput}
+          onPaste={handlePaste}
+          style={{
+            width: '100%',
+            height: '24px',
+            minHeight: '24px',
+            maxHeight: '400px',
+            border: 'none',
+            outline: 'none',
+            background: 'transparent',
+            color: theme.colors.text,
+            fontSize: '20px',
+            fontFamily: theme.typography.fontFamily.primary,
+            lineHeight: '24px', // Match height exactly
+            resize: 'none',
+            overflow: 'auto',
+            paddingRight: '40px',
+            boxSizing: 'border-box',
+            verticalAlign: 'baseline',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            textAlign: 'left',
+            display: 'block',
+            transition: 'none', // No transitions for smooth expansion
+          }}
+        />
+      </div>
       
       <CustomScrollbar targetRef={textareaRef} theme={theme} />
     </motion.div>
