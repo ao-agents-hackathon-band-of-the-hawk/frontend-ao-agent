@@ -67,7 +67,7 @@ const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSiz
           borderRadius: '50%',
         }}
         animate={{ 
-          width: [transitionStartSize, 118, 516], 
+          width: [transitionStartSize, 118, 645], // Increased by 25% (516 * 1.25)
           height: [transitionStartSize, 118, containerHeight], 
           borderRadius: ['50%', '50%', '62px'],
         }}
@@ -82,7 +82,7 @@ const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSiz
           zIndex: 1,
           display: 'flex',
           alignItems: 'flex-start',
-          padding: transitionStage === 'text' ? '0 38px' : '0',
+          padding: transitionStage === 'text' ? '0 47px' : '0', // Increased proportionally (38 * 1.25)
           height: transitionStage === 'text' ? containerHeight : undefined,
         }}
       >
@@ -115,7 +115,7 @@ const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSiz
         {/* Text input area - appears smoothly */}
         <TextBox 
           isVisible={transitionStage === 'text'} 
-          marginRight="50px" // Reduced to give more text area
+          marginRight="62px" // Increased proportionally (50 * 1.25)
           onHeightChange={handleTextareaHeightChange}
         />
       </motion.div>
@@ -132,7 +132,7 @@ const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSiz
         animate={{ 
           width: [transitionStartSize, 100, 100], 
           height: [transitionStartSize, 100, 100],
-          x: [0, 0, 196], // Adjusted for larger pill 
+          x: [0, 0, 259], // Adjusted for 25% larger container (196 * 1.25)
           y: [0, 0, transitionStage === 'text' && textareaHeight > 24 
             ? Math.max(0, (containerHeight - 125) / 2) 
             : 0], // Only move down if textarea has expanded
