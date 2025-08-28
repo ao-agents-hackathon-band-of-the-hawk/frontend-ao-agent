@@ -36,7 +36,6 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme }) =
     thumbRadius: '4px',  // Thumb border radius
     trackBg: 'transparent', // Track background
     thumbBg: `${theme.colors.accent}60`, // Thumb background
-    thumbBorder: `1px solid ${theme.colors.accent}80`, // Thumb border
     thumbHoverBg: `${theme.colors.accent}80`, // Thumb hover color
   };
 
@@ -144,7 +143,6 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme }) =
           minHeight: scrollbarConfig.thumbMinHeight,
           height: '30%',
           background: scrollbarConfig.thumbBg,
-          border: scrollbarConfig.thumbBorder,
           borderRadius: scrollbarConfig.thumbRadius,
           cursor: 'pointer',
           transition: 'background-color 0.2s',

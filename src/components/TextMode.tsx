@@ -47,30 +47,25 @@ const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSiz
         justifyContent: 'center',
       }}
     >
-      {/* Expanding outline/border - dynamic starting size based on current voice scale */}
+      {/* Expanding container - no border, just background and shadow */}
       <motion.div
         initial={{ 
           width: transitionStartSize, 
           height: transitionStartSize, 
           borderRadius: '50%',
-          borderWidth: 0,
         }}
         animate={{ 
           width: [transitionStartSize, 118, 516], 
           height: [transitionStartSize, 118, containerHeight], 
           borderRadius: ['50%', '50%', '62px'],
-          borderWidth: [0, 2, 2],
         }}
         transition={{
-          duration: transitionStage === 'expanding' ? 1.8 : 0, // No animation for text resizing
+          duration: transitionStage === 'expanding' ? 1.8 : (transitionStage === 'text' ? 0.2 : 0),
           times: [0, 0.4, 1],
           ease: [0.2, 0, 0.1, 1],
         }}
         style={{
           position: 'absolute',
-          borderStyle: 'solid',
-          borderColor: theme.colors.accent,
-          background: transitionStage === 'text' ? theme.colors.background : 'transparent',
           zIndex: 1,
           display: 'flex',
           alignItems: 'flex-start',
@@ -78,6 +73,32 @@ const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSiz
           height: transitionStage === 'text' ? containerHeight : undefined,
         }}
       >
+        {/* Animated background and shadow container */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ 
+            opacity: transitionStage === 'expanding' ? [0, 0, 0.6, 1] : 
+                     transitionStage === 'text' ? 1 : 0,
+          }}
+          transition={{
+            duration: transitionStage === 'expanding' ? 1.8 : 
+                     transitionStage === 'text' ? 0.2 : 0,
+            times: transitionStage === 'expanding' ? [0, 0.3, 0.7, 1] : 
+                   transitionStage === 'text' ? [0, 1] : [0, 1],
+            ease: [0.2, 0, 0.1, 1],
+          }}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: '#ffffff',
+            borderRadius: '62px',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.05)',
+            zIndex: -1,
+          }}
+        />
         {/* Text input area - appears smoothly */}
         <TextBox 
           isVisible={transitionStage === 'text'} 
