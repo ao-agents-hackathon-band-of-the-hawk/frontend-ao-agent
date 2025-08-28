@@ -200,24 +200,24 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
   };
 
   const textareaStyles: React.CSSProperties = {
-    width: '100%',
-    height: '24px',
-    minHeight: '24px',
-    maxHeight: '400px',
-    border: 'none',
-    outline: 'none',
-    background: 'transparent',
-    color: theme.colors.text,
-    fontSize: '20px',
-    fontFamily: theme.typography.fontFamily.primary,
-    resize: 'none',
-    overflow: 'auto',
-    lineHeight: '1.2',
-    transition: 'none',
-    paddingRight: '40px',
-    scrollbarWidth: 'none',
-    msOverflowStyle: 'none',
-  };
+  width: '100%',
+  height: '24px',
+  minHeight: '24px',
+  maxHeight: '400px',
+  border: 'none',
+  outline: 'none',
+  background: 'transparent',
+  color: theme.colors.text,
+  fontSize: '20px',
+  fontFamily: theme.typography.fontFamily.primary,
+  resize: 'none',
+  overflow: 'auto',
+  lineHeight: '1.2',
+  transition: 'none',
+  paddingRight: '45px',
+  scrollbarWidth: 'none',
+  msOverflowStyle: 'none',
+};
 
   return (
     <motion.div

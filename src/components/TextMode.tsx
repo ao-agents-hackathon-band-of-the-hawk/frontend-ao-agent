@@ -18,7 +18,7 @@ const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSiz
     borderRadius: '50%',
     background: imageUrl
       ? `linear-gradient(rgba(100, 108, 255, 0.1), rgba(100, 108, 255, 0.1)), url(${imageUrl})`
-      : `linear-gradient(135deg, ${theme.colors.accent}, #8b5cf6)`,
+      : `linear-gradient(135deg, ${theme.colors.accent}, #DBE0C3)`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     backgroundRepeat: 'no-repeat',

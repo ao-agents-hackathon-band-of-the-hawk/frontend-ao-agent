@@ -1,12 +1,12 @@
 {
   "colors": {
-    "background": "#E9E9E9",
+    "background": "#F6F6F6",
     "text": "#2c2c2c",
-    "accent": "#646cff"
+    "accent": "#C3CB9C"
   },
   "typography": {
     "fontFamily": {
-      "primary": "Rubik, sans-serif"
+      "primary": "Open Sans, sans-serif"
     },
     "fontSize": {
       "base": 16,

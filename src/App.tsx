@@ -71,7 +71,7 @@ function App() {
           style={{
             marginTop: '8px',
             padding: '4px 8px',
-            background: '#646cff',
+            background: '#DBE0C3',
             color: 'white',
             border: 'none',
             borderRadius: '4px',
