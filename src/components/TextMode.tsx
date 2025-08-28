@@ -3,17 +3,59 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '../hooks/useTheme';
 import TextBox from './TextBox';
+import ChatArea from './ChatArea';
 
 interface TextModeProps {
   transitionStage: 'expanding' | 'text';
   transitionStartSize: number;
   imageUrl?: string;
+  isChatMode: boolean;
+  messages: { role: 'user' | 'assistant'; content: string }[];
+  inputValue: string;
+  setInputValue: (value: string) => void;
+  onSend: () => void;
 }
 
-const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSize, imageUrl }) => {
+const TextMode: React.FC<TextModeProps> = ({ 
+  transitionStage, 
+  transitionStartSize, 
+  imageUrl,
+  isChatMode,
+  messages,
+  inputValue,
+  setInputValue,
+  onSend
+}) => {
   const theme = useTheme();
-  const [textareaHeight, setTextareaHeight] = useState(24); // Initial single line height
+  const [textareaHeight, setTextareaHeight] = useState(24);
   const [isInitialTransition, setIsInitialTransition] = useState(true);
+
+  const isExpanding = transitionStage === 'expanding';
+
+  if (isChatMode) {
+    return (
+      <ChatArea
+        messages={messages}
+        inputValue={inputValue}
+        setInputValue={setInputValue}
+        onSend={onSend}
+        imageUrl={imageUrl}
+      />
+    );
+  }
+
+  // Dimensions for initial text mode (non-chat)
+  const baseWidth = 645;
+  const baseHeight = 125;
+  const sphereSize = 100;
+  const sphereX = 259;
+  const paddingX = 47;
+  const textMarginRight = '62px';
+
+  // Calculate dynamic container height
+  const containerHeight = textareaHeight > 24 
+    ? Math.max(baseHeight, textareaHeight + 50)
+    : baseHeight;
 
   const sphereStyle: React.CSSProperties = {
     borderRadius: '50%',
@@ -25,27 +67,15 @@ const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSiz
     backgroundRepeat: 'no-repeat',
     position: 'relative',
     zIndex: 2,
+    cursor: 'pointer',
   };
 
-  // Calculate dynamic container height based on textarea height
-  const containerHeight = transitionStage === 'text' && textareaHeight > 24 
-    ? Math.max(125, textareaHeight + 50) // Only expand if there's actual content
-    : 125; // Original height when empty or not in text mode
-
-  const handleTextareaHeightChange = (height: number) => {
+  const handleHeightChange = (height: number) => {
     setTextareaHeight(height);
-    // Mark that we're past the initial transition
     if (isInitialTransition && transitionStage === 'text') {
       setIsInitialTransition(false);
     }
   };
-
-  // Reset initial transition flag when transition stage changes
-  React.useEffect(() => {
-    if (transitionStage === 'expanding') {
-      setIsInitialTransition(true);
-    }
-  }, [transitionStage]);
 
   return (
     <motion.div
@@ -57,98 +87,113 @@ const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSiz
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        height: '100%',
+        width: '100%',
       }}
     >
-      {/* Expanding container - no border, just background and shadow */}
-      <motion.div
-        initial={{ 
-          width: transitionStartSize, 
-          height: transitionStartSize, 
-          borderRadius: '50%',
-        }}
-        animate={{ 
-          width: [transitionStartSize, 118, 645], // Increased by 25% (516 * 1.25)
-          height: [transitionStartSize, 118, containerHeight], 
-          borderRadius: ['50%', '50%', '62px'],
-        }}
-        transition={{
-          duration: transitionStage === 'expanding' ? 1.8 : 
-                   (transitionStage === 'text' && isInitialTransition ? 0.2 : 0), // Instant after initial transition
-          times: [0, 0.4, 1],
-          ease: [0.2, 0, 0.1, 1],
-        }}
-        style={{
-          position: 'absolute',
-          zIndex: 1,
-          display: 'flex',
-          alignItems: 'flex-start',
-          padding: transitionStage === 'text' ? '0 47px' : '0', // Increased proportionally (38 * 1.25)
-          height: transitionStage === 'text' ? containerHeight : undefined,
-        }}
-      >
-        {/* Animated background and shadow container */}
+      {/* Input container for initial text mode */}
+      <div style={{
+        width: `${baseWidth}px`,
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        {/* Expanding container - no border, just background and shadow */}
         <motion.div
-          initial={{ opacity: 0 }}
+          initial={{ 
+            width: transitionStartSize, 
+            height: transitionStartSize, 
+            borderRadius: '50%',
+          }}
           animate={{ 
-            opacity: transitionStage === 'expanding' ? [0, 0, 0.6, 1] : 
-                     transitionStage === 'text' ? 1 : 0,
+            width: [transitionStartSize, 118, baseWidth],
+            height: [transitionStartSize, 118, containerHeight], 
+            borderRadius: ['50%', '50%', '62px'],
           }}
           transition={{
-            duration: transitionStage === 'expanding' ? 1.8 : 
-                     transitionStage === 'text' ? 0.2 : 0,
-            times: transitionStage === 'expanding' ? [0, 0.3, 0.7, 1] : 
-                   transitionStage === 'text' ? [0, 1] : [0, 1],
+            duration: isExpanding ? 1.8 : 
+                     (transitionStage === 'text' && isInitialTransition ? 0.2 : 0),
+            times: [0, 0.4, 1],
             ease: [0.2, 0, 0.1, 1],
           }}
           style={{
             position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: '#ffffff',
-            borderRadius: '62px',
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.05)',
-            zIndex: -1,
+            zIndex: 1,
+            display: 'flex',
+            alignItems: 'flex-start',
+            padding: transitionStage === 'text' ? `0 ${paddingX}px` : '0',
+            height: transitionStage === 'text' ? containerHeight : undefined,
+          }}
+        >
+          {/* Animated background and shadow container */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ 
+              opacity: isExpanding ? [0, 0, 0.6, 1] : 
+                       transitionStage === 'text' ? 1 : 0,
+            }}
+            transition={{
+              duration: isExpanding ? 1.8 : 
+                       transitionStage === 'text' ? 0.2 : 0,
+              times: isExpanding ? [0, 0.3, 0.7, 1] : 
+                     transitionStage === 'text' ? [0, 1] : [0, 1],
+              ease: [0.2, 0, 0.1, 1],
+            }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: '#ffffff',
+              borderRadius: '62px',
+              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.05)',
+              zIndex: -1,
+            }}
+          />
+          {/* Text input area - appears smoothly */}
+          <TextBox 
+            isVisible={transitionStage === 'text'} 
+            marginRight={textMarginRight}
+            onHeightChange={handleHeightChange}
+            value={inputValue}
+            onChange={setInputValue}
+            onSend={onSend}
+          />
+        </motion.div>
+
+        {/* Shrinking and moving sphere */}
+        <motion.div
+          onClick={onSend}
+          initial={{ 
+            width: transitionStartSize,
+            height: transitionStartSize,
+            x: 0,
+            y: 0,
+            scale: 1,
+          }}
+          animate={{ 
+            width: [transitionStartSize, sphereSize, sphereSize], 
+            height: [transitionStartSize, sphereSize, sphereSize],
+            x: [0, 0, sphereX],
+            y: [0, 0, transitionStage === 'text' && textareaHeight > 24 
+              ? Math.max(0, (containerHeight - baseHeight) / 2) 
+              : 0],
+            scale: 1,
+          }}
+          transition={{
+            duration: isExpanding ? 1.8 : 
+                     (transitionStage === 'text' && isInitialTransition ? 0 : 0),
+            times: [0, 0.4, 1],
+            ease: [0.2, 0, 0.1, 1],
+          }}
+          style={{
+            ...sphereStyle,
+            zIndex: 2,
           }}
         />
-        {/* Text input area - appears smoothly */}
-        <TextBox 
-          isVisible={transitionStage === 'text'} 
-          marginRight="62px" // Increased proportionally (50 * 1.25)
-          onHeightChange={handleTextareaHeightChange}
-        />
-      </motion.div>
-
-      {/* Shrinking and moving sphere - starts from current voice scale and adjusts position based on textarea height */}
-      <motion.div
-        initial={{ 
-          width: transitionStartSize,
-          height: transitionStartSize,
-          x: 0,
-          y: 0,
-          scale: 1, // Already factored into width/height
-        }}
-        animate={{ 
-          width: [transitionStartSize, 100, 100], 
-          height: [transitionStartSize, 100, 100],
-          x: [0, 0, 259], // Adjusted for 25% larger container (196 * 1.25)
-          y: [0, 0, transitionStage === 'text' && textareaHeight > 24 
-            ? Math.max(0, (containerHeight - 125) / 2) 
-            : 0], // Only move down if textarea has expanded
-          scale: 1, // Keep scale at 1 since we're animating width/height directly
-        }}
-        transition={{
-          duration: transitionStage === 'expanding' ? 1.8 : 
-                   (transitionStage === 'text' && isInitialTransition ? 0 : 0), // Instant sphere movement after initial transition
-          times: [0, 0.4, 1],
-          ease: [0.2, 0, 0.1, 1],
-        }}
-        style={{
-          ...sphereStyle,
-          zIndex: 2,
-        }}
-      />
+      </div>
     </motion.div>
   );
 };

@@ -4,6 +4,9 @@ import './App.css';
 
 function App() {
   const [isTextMode, setIsTextMode] = useState(false);
+  const [isChatMode, setIsChatMode] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
   const [debugInfo, setDebugInfo] = useState('Voice mode active');
 
   // Listen for keyboard shortcut to toggle modes (spacebar or 't')
@@ -28,11 +31,30 @@ function App() {
     console.log('Transition to text mode completed');
   };
 
+  const handleSend = () => {
+    if (inputValue.trim()) {
+      setMessages(prev => [...prev, { role: 'user', content: inputValue }]);
+      setInputValue('');
+      if (!isChatMode) {
+        setIsChatMode(true);
+      }
+      // Simulate AI response (optional, can be removed if not needed)
+      setTimeout(() => {
+        setMessages(prev => [...prev, { role: 'assistant', content: 'This is a simulated response.' }]);
+      }, 1000);
+    }
+  };
+
   return (
     <div className="app">
       <Transition 
         isTextMode={isTextMode}
+        isChatMode={isChatMode}
         onTransitionComplete={handleTransitionComplete}
+        inputValue={inputValue}
+        setInputValue={setInputValue}
+        messages={messages}
+        onSend={handleSend}
         // imageUrl="/path/to/your/image.jpg" // Optional: add your custom image
       />
       

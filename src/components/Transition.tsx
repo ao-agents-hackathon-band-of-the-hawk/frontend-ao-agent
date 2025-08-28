@@ -7,14 +7,24 @@ import TextMode from './TextMode';
 
 interface TransitionProps {
   isTextMode: boolean;
+  isChatMode: boolean;
   onTransitionComplete?: () => void;
   imageUrl?: string;
+  inputValue: string;
+  setInputValue: (value: string) => void;
+  messages: { role: 'user' | 'assistant'; content: string }[];
+  onSend: () => void;
 }
 
 const Transition: React.FC<TransitionProps> = ({ 
   isTextMode, 
+  isChatMode,
   onTransitionComplete,
-  imageUrl 
+  imageUrl,
+  inputValue,
+  setInputValue,
+  messages,
+  onSend
 }) => {
   const theme = useTheme();
   const [transitionStage, setTransitionStage] = useState<'voice' | 'expanding' | 'text'>('voice');
@@ -75,6 +85,11 @@ const Transition: React.FC<TransitionProps> = ({
             transitionStage={transitionStage}
             transitionStartSize={transitionStartSize}
             imageUrl={imageUrl}
+            isChatMode={isChatMode}
+            messages={messages}
+            inputValue={inputValue}
+            setInputValue={setInputValue}
+            onSend={onSend}
           />
         )}
       </AnimatePresence>

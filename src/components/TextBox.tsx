@@ -7,6 +7,9 @@ export interface TextBoxProps {
   isVisible: boolean;
   marginRight: string;
   onHeightChange?: (height: number) => void;
+  value: string;
+  onChange: (value: string) => void;
+  onSend: () => void;
 }
 
 interface CustomScrollbarProps {
@@ -175,7 +178,7 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme }) =
   );
 };
 
-const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChange }) => {
+const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChange, value, onChange, onSend }) => {
   const theme = useTheme();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [textareaHeight, setTextareaHeight] = useState(24);
@@ -187,7 +190,7 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
     // Reset height to get proper scrollHeight
     textarea.style.height = '24px'; // Always reset to single line height first
     
-    if (textarea.value.trim() === '') {
+    if (value.trim() === '') {
       // Keep at single line height when empty
       if (textareaHeight !== 24) {
         setTextareaHeight(24);
@@ -197,7 +200,7 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
     }
 
     // Calculate new height based on content
-    const newHeight = Math.min(textarea.scrollHeight, 425);
+    const newHeight = Math.min(textarea.scrollHeight, 400);
     textarea.style.height = `${newHeight}px`;
     
     if (newHeight !== textareaHeight) {
@@ -206,15 +209,21 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
     }
   };
 
-  const handleInput = () => {
+  useEffect(() => {
     adjustTextareaHeight();
+  }, [value]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      onSend();
+    }
   };
 
   const handlePaste = () => {
-    // Immediate height adjustment for smooth expansion - remove requestAnimationFrame delay
     setTimeout(() => {
       adjustTextareaHeight();
-    }, 0); // Use setTimeout with 0 instead of requestAnimationFrame for more immediate execution
+    }, 0);
   };
 
   return (
@@ -240,13 +249,15 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
         <textarea
           ref={textareaRef}
           placeholder="Type your message..."
-          onInput={handleInput}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           style={{
             width: '100%',
             height: '24px',
             minHeight: '24px',
-            maxHeight: '425px',
+            maxHeight: '400px',
             border: 'none',
             outline: 'none',
             background: 'transparent',
