@@ -81,7 +81,7 @@ const TextMode: React.FC<TextModeProps> = ({ transitionStage, transitionStartSiz
         {/* Text input area - appears smoothly */}
         <TextBox 
           isVisible={transitionStage === 'text'} 
-          marginRight="130px"
+          marginRight="50px" // Reduced to give more text area
           onHeightChange={handleTextareaHeightChange}
         />
       </motion.div>
