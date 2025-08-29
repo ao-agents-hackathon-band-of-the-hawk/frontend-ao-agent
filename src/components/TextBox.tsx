@@ -10,22 +10,46 @@ export interface TextBoxProps {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
+  scrollbarConfig?: {
+    right: string;
+    top: string;
+    bottom: string;
+    width: string;
+    thumbMinHeight: string;
+    trackRadius: string;
+    thumbRadius: string;
+    trackBg: string;
+    thumbBg: string;
+    thumbHoverBg: string;
+  };
 }
 
 interface CustomScrollbarProps {
   targetRef: React.RefObject<HTMLTextAreaElement | null>;
   theme: any;
+  config?: {
+    right: string;
+    top: string;
+    bottom: string;
+    width: string;
+    thumbMinHeight: string;
+    trackRadius: string;
+    thumbRadius: string;
+    trackBg: string;
+    thumbBg: string;
+    thumbHoverBg: string;
+  };
 }
 
-const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme }) => {
+const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme, config }) => {
   const [scrollPercent, setScrollPercent] = useState(0);
   const [thumbHeight, setThumbHeight] = useState(30); // Dynamic thumb height percentage
   const [isVisible, setIsVisible] = useState(false);
   const scrollbarRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
 
-  // SCROLLBAR CUSTOMIZATION PARAMETERS - CHANGE THESE
-  const scrollbarConfig = {
+  // SCROLLBAR CUSTOMIZATION PARAMETERS - Use provided config or defaults
+  const scrollbarConfig = config || {
     // Position (relative to textarea)
     right: '-48px',        // Distance from right edge
     top: '25px',         // Distance from top
@@ -51,7 +75,11 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme }) =
       const { scrollTop, scrollHeight, clientHeight } = textarea;
       const maxScroll = scrollHeight - clientHeight;
       
-      if (maxScroll <= 0) {
+      // Only show scrollbar when textarea has reached max height (400px) AND has scrollable content
+      const hasReachedMaxHeight = clientHeight >= 400;
+      const hasScrollableContent = maxScroll > 0;
+      
+      if (!hasReachedMaxHeight || !hasScrollableContent) {
         setIsVisible(false);
         return;
       }
@@ -178,7 +206,7 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme }) =
   );
 };
 
-const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChange, value, onChange, onSend }) => {
+const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChange, value, onChange, onSend, scrollbarConfig }) => {
   const theme = useTheme();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [textareaHeight, setTextareaHeight] = useState(24);
@@ -323,7 +351,7 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
         />
       </div>
       
-      <CustomScrollbar targetRef={textareaRef} theme={theme} />
+      <CustomScrollbar targetRef={textareaRef} theme={theme} config={scrollbarConfig} />
     </motion.div>
   );
 };
