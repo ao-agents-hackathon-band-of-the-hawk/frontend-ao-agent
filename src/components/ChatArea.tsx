@@ -36,11 +36,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     
     // Message bubble styling
     messagePadding: '10px 15px',  // Internal padding of message bubbles
-    maxMessageWidth: '80%',       // Maximum width of message bubbles
+    maxMessageWidth: '90%',       // Maximum width of message bubbles
     
     // Colors
     colors: {
-      userBubble: '#ffffff',     // User message background
+      userBubble: '#ffffffff',     // User message background
       assistantBubble: '#ffffff',         // Assistant message background (white like textbox)
       userText: '#11111199',                  // User message text color
       assistantText: '#11111199',             // Assistant message text color
@@ -279,6 +279,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                 fontSize: CHAT_CONFIG.typography.fontSize,
                 lineHeight: CHAT_CONFIG.typography.lineHeight,
                 wordWrap: 'break-word',
+                // Preserve exact formatting (newlines, spaces, tabs) without reformatting
+                whiteSpace: 'pre-wrap',
+                // Ensure text is left-aligned, not centered
+                textAlign: 'left',
                 // Add shadow for both user and assistant messages to match textbox style
                 boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.05)',
               }}
