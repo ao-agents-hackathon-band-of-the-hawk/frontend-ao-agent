@@ -220,16 +220,37 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
     }
   };
 
-  const handlePaste = () => {
+  // Updated paste handler with better timing
+  const handlePaste = (_e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    // Allow the paste to happen first
     setTimeout(() => {
-      adjustTextareaHeight();
-    }, 0);
+      // Force a more aggressive height recalculation
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      
+      // First, force the browser to update the DOM
+      textarea.style.height = '24px';
+      
+      // Use requestAnimationFrame to ensure DOM is fully updated
+      requestAnimationFrame(() => {
+        const newHeight = Math.min(textarea.scrollHeight, 400);
+        textarea.style.height = `${newHeight}px`;
+        
+        if (newHeight !== textareaHeight) {
+          setTextareaHeight(newHeight);
+          onHeightChange?.(newHeight);
+        }
+      });
+    }, 10); // Slightly longer delay to ensure paste is processed
   };
 
   // Handle input changes (including paste via other methods)
   const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
     const target = e.target as HTMLTextAreaElement;
     onChange(target.value);
+    
+    // Also trigger height adjustment on input to catch any edge cases
+    setTimeout(() => adjustTextareaHeight(), 0);
   };
 
   return (
