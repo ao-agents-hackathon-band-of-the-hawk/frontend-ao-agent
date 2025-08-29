@@ -40,11 +40,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     
     // Colors
     colors: {
-      userBubble: theme.colors.accent,     // User message background
+      userBubble: '#ffffff',     // User message background
       assistantBubble: '#ffffff',         // Assistant message background (white like textbox)
-      userText: '#ffffffff',                  // User message text color
-      assistantText: 'black',             // Assistant message text color
-      scrollbar: `${theme.colors.accent}60`,  // Scrollbar color (with transparency)
+      userText: '#11111199',                  // User message text color
+      assistantText: '#11111199',             // Assistant message text color
+      scrollbar: `#5b652a`,  // Scrollbar color (with transparency)
       scrollbarTrack: 'transparent',      // Scrollbar track color
     },
     
@@ -64,10 +64,14 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   const paddingX = 56.4; // 47 * 1.2
   const textMarginRight = '74.4'; // 62 * 1.2
 
-  // Calculate dynamic container height
+  // Calculate dynamic container height (expands upwards)
   const containerHeight = textareaHeight > 24 
     ? Math.max(baseHeight, textareaHeight + 45)
     : baseHeight;
+
+  // Calculate extra height for dynamic top padding (prevents content from hugging top edge)
+  const extraHeight = Math.max(0, containerHeight - baseHeight);
+  const dynamicTopPadding = Math.min(20, extraHeight / 2); // Cap at 20px for usability
 
   // Calculate available height for chat messages
   useEffect(() => {
@@ -403,8 +407,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({
             background: '#ffffff',
             boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.05)',
             display: 'flex',
-            alignItems: 'flex-start',
-            padding: `0 ${paddingX}px`,
+            alignItems: 'flex-end',  // Changed to flex-end to pin content to bottom
+            padding: `${dynamicTopPadding}px ${paddingX}px 0 ${paddingX}px`,  // Dynamic top padding, 0 bottom
             position: 'absolute',
             zIndex: 1,
           }}
@@ -419,16 +423,14 @@ const ChatArea: React.FC<ChatAreaProps> = ({
           />
         </div>
 
-        {/* Static sphere */}
+        {/* Static sphere - no dynamic translateY */}
         <div
           onClick={onSend}
           style={{
             ...sphereStyle,
             width: `${sphereSize}px`,
             height: `${sphereSize}px`,
-            transform: `translateX(${sphereX}px) translateY(${
-              textareaHeight > 24 ? Math.max(0, (containerHeight - baseHeight) / 2) : 0
-            }px)`,
+            transform: `translateX(${sphereX}px) translateY(0)`,  // Fixed at 0 (no downward movement)
           }}
         />
       </div>
