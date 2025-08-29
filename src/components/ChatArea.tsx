@@ -29,7 +29,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     // Layout and spacing
     containerPadding: 30,     // Internal padding around chat messages
     messageGap: 15,           // Gap between individual message bubbles
-    topMargin: 40,            // Distance from viewport top
+    topMargin: 35,            // Distance from viewport top
     topBlurHeight: 15,        // Height of top fade/blur effect
     bottomBlurHeight: 15,     // Height of bottom fade/blur effect
     bottomMargin: 10,         // Gap between chat area and textbox
@@ -64,14 +64,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   const paddingX = 56.4; // 47 * 1.2
   const textMarginRight = '74.4'; // 62 * 1.2
 
-  // Calculate dynamic container height (expands upwards)
+  // Calculate dynamic container height
   const containerHeight = textareaHeight > 24 
     ? Math.max(baseHeight, textareaHeight + 45)
     : baseHeight;
-
-  // Calculate extra height for dynamic top padding (prevents content from hugging top edge)
-  const extraHeight = Math.max(0, containerHeight - baseHeight);
-  const dynamicTopPadding = Math.min(20, extraHeight / 2); // Cap at 20px for usability
 
   // Calculate available height for chat messages
   useEffect(() => {
@@ -80,11 +76,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({
       
       // Account for:
       // - Container height (textbox area)
-      // - Bottom margin (fixed at 80px for textbox positioning)
+      // - Bottom margin (fixed at 65px for textbox positioning)
       // - Top margin (customizable)
       // - Bottom margin (customizable - reduces chat area height)
       // - Additional padding/spacing (20px for safety)
-      const textboxAreaHeight = containerHeight + 80 + CHAT_CONFIG.topMargin + CHAT_CONFIG.bottomMargin + 20;
+      const textboxAreaHeight = containerHeight + 35 + CHAT_CONFIG.topMargin + CHAT_CONFIG.bottomMargin + 20;
       
       // Available height for chat messages - increased to extend closer to textbox
       const availableHeight = viewportHeight - textboxAreaHeight + 50; // Added 50px to increase height
@@ -388,7 +384,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
       <div
         style={{
           position: 'fixed',
-          bottom: '80px',
+          bottom: '35px',
           left: '50%',
           transform: 'translateX(-50%)',
           width: `${baseWidth}px`,
@@ -407,10 +403,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({
             background: '#ffffff',
             boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.05)',
             display: 'flex',
-            alignItems: 'flex-end',  // Changed to flex-end to pin content to bottom
-            padding: `${dynamicTopPadding}px ${paddingX}px 0 ${paddingX}px`,  // Dynamic top padding, 0 bottom
+            alignItems: 'flex-end',
+            padding: `0 ${paddingX}px`,
             position: 'absolute',
-            zIndex: 1,
+            left: 0,
+            bottom: 0,
           }}
         >
           <TextBox
@@ -423,14 +420,16 @@ const ChatArea: React.FC<ChatAreaProps> = ({
           />
         </div>
 
-        {/* Static sphere - no dynamic translateY */}
+        {/* Static sphere */}
         <div
           onClick={onSend}
           style={{
             ...sphereStyle,
             width: `${sphereSize}px`,
             height: `${sphereSize}px`,
-            transform: `translateX(${sphereX}px) translateY(0)`,  // Fixed at 0 (no downward movement)
+            transform: `translateX(${sphereX}px)`,
+            position: 'absolute',
+            bottom: `${(baseHeight - sphereSize) / 2}px`,
           }}
         />
       </div>
