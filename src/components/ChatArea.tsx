@@ -76,11 +76,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({
       
       // Account for:
       // - Container height (textbox area)
-      // - Bottom margin (fixed at 65px for textbox positioning)
+      // - Bottom margin (fixed at 30px for textbox positioning)
       // - Top margin (customizable)
       // - Bottom margin (customizable - reduces chat area height)
       // - Additional padding/spacing (20px for safety)
-      const textboxAreaHeight = containerHeight + 35 + CHAT_CONFIG.topMargin + CHAT_CONFIG.bottomMargin + 20;
+      const textboxAreaHeight = containerHeight + 30 + CHAT_CONFIG.topMargin + CHAT_CONFIG.bottomMargin + 20;
       
       // Available height for chat messages - increased to extend closer to textbox
       const availableHeight = viewportHeight - textboxAreaHeight + 50; // Added 50px to increase height
@@ -384,7 +384,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
       <div
         style={{
           position: 'fixed',
-          bottom: '35px',
+          bottom: '30px',
           left: '50%',
           transform: 'translateX(-50%)',
           width: `${baseWidth}px`,
@@ -417,6 +417,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
             value={inputValue}
             onChange={setInputValue}
             onSend={onSend}
+            isChatMode={true} // Pass chat mode flag
           />
         </div>
 

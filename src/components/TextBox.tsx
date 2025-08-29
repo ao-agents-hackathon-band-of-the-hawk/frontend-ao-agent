@@ -10,62 +10,51 @@ export interface TextBoxProps {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
-  scrollbarConfig?: {
-    right: string;
-    top: string;
-    bottom: string;
-    width: string;
-    thumbMinHeight: string;
-    trackRadius: string;
-    thumbRadius: string;
-    trackBg: string;
-    thumbBg: string;
-    thumbHoverBg: string;
-  };
+  isChatMode?: boolean;
 }
 
 interface CustomScrollbarProps {
   targetRef: React.RefObject<HTMLTextAreaElement | null>;
   theme: any;
-  config?: {
-    right: string;
-    top: string;
-    bottom: string;
-    width: string;
-    thumbMinHeight: string;
-    trackRadius: string;
-    thumbRadius: string;
-    trackBg: string;
-    thumbBg: string;
-    thumbHoverBg: string;
-  };
+  isChatMode?: boolean;
 }
 
-const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme, config }) => {
+const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme, isChatMode }) => {
   const [scrollPercent, setScrollPercent] = useState(0);
   const [thumbHeight, setThumbHeight] = useState(30); // Dynamic thumb height percentage
   const [isVisible, setIsVisible] = useState(false);
   const scrollbarRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
 
-  // SCROLLBAR CUSTOMIZATION PARAMETERS - Use provided config or defaults
-  const scrollbarConfig = config || {
-    // Position (relative to textarea)
+  // SCROLLBAR CUSTOMIZATION PARAMETERS - DEFAULT (CENTERED MODE)
+  const defaultScrollbarConfig = {
     right: '-48px',        // Distance from right edge
     top: '25px',         // Distance from top
     bottom: '130px',      // Distance from bottom
-    
-    // Dimensions
     width: '8px',        // Scrollbar width
     thumbMinHeight: '20px', // Minimum thumb height
-    
-    // Styling
     trackRadius: '4px',  // Track border radius
     thumbRadius: '4px',  // Thumb border radius
     trackBg: 'transparent', // Track background
     thumbBg: `${theme.colors.accent}60`, // Thumb background
     thumbHoverBg: `${theme.colors.accent}80`, // Thumb hover color
   };
+
+  // SCROLLBAR CUSTOMIZATION PARAMETERS - CHAT MODE (CHANGE POSITION HERE)
+  const chatScrollbarConfig = {
+    right: '-7px',        // Distance from right edge - ADJUST THIS
+    top: '25px',         // Distance from top - ADJUST THIS  
+    bottom: '115px',      // Distance from bottom - ADJUST THIS
+    width: '8px',        // Scrollbar width
+    thumbMinHeight: '20px', // Minimum thumb height
+    trackRadius: '4px',  // Track border radius
+    thumbRadius: '4px',  // Thumb border radius
+    trackBg: 'transparent', // Track background
+    thumbBg: `#5b652a60`, // Thumb background (matches chat scrollbar)
+    thumbHoverBg: `#5b652a80`, // Thumb hover color
+  };
+
+  const scrollbarConfig = isChatMode ? chatScrollbarConfig : defaultScrollbarConfig;
 
   useEffect(() => {
     const textarea = targetRef.current;
@@ -75,11 +64,8 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme, con
       const { scrollTop, scrollHeight, clientHeight } = textarea;
       const maxScroll = scrollHeight - clientHeight;
       
-      // Only show scrollbar when textarea has reached max height (400px) AND has scrollable content
-      const hasReachedMaxHeight = clientHeight >= 400;
-      const hasScrollableContent = maxScroll > 0;
-      
-      if (!hasReachedMaxHeight || !hasScrollableContent) {
+      // Only show scrollbar when content exceeds container AND textarea is at max height (400px)
+      if (maxScroll <= 0 || clientHeight < 400) {
         setIsVisible(false);
         return;
       }
@@ -206,7 +192,7 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme, con
   );
 };
 
-const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChange, value, onChange, onSend, scrollbarConfig }) => {
+const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChange, value, onChange, onSend, isChatMode }) => {
   const theme = useTheme();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [textareaHeight, setTextareaHeight] = useState(24);
@@ -351,7 +337,7 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
         />
       </div>
       
-      <CustomScrollbar targetRef={textareaRef} theme={theme} config={scrollbarConfig} />
+      <CustomScrollbar targetRef={textareaRef} theme={theme} isChatMode={isChatMode} />
     </motion.div>
   );
 };
