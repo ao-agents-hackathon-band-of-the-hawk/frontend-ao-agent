@@ -1,5 +1,5 @@
 // src/components/ChatArea.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../hooks/useTheme';
 import TextBox from './TextBox';
 
@@ -20,6 +20,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 }) => {
   const theme = useTheme();
   const [textareaHeight, setTextareaHeight] = useState(24);
+  const [chatMaxHeight, setChatMaxHeight] = useState(600); // Default fallback
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Dimensions for chat mode
   const baseWidth = 800; // 645 * 1.2
@@ -33,6 +35,42 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   const containerHeight = textareaHeight > 24 
     ? Math.max(baseHeight, textareaHeight + 45)
     : baseHeight;
+
+  // Calculate available height for chat messages
+  useEffect(() => {
+    const calculateChatHeight = () => {
+      const viewportHeight = window.innerHeight;
+      
+      // Account for:
+      // - Container height (textbox area)
+      // - Bottom margin (80px)
+      // - Additional padding/spacing (40px for safety)
+      const textboxAreaHeight = containerHeight + 80 + 40;
+      
+      // Available height for chat messages
+      const availableHeight = viewportHeight - textboxAreaHeight;
+      
+      // Set minimum height of 200px, maximum of calculated available height
+      const newMaxHeight = Math.max(200, availableHeight);
+      
+      setChatMaxHeight(newMaxHeight);
+    };
+
+    // Calculate on mount and window resize
+    calculateChatHeight();
+    window.addEventListener('resize', calculateChatHeight);
+    
+    return () => {
+      window.removeEventListener('resize', calculateChatHeight);
+    };
+  }, [containerHeight]);
+
+  // Auto-scroll to bottom when new messages are added
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   const sphereStyle: React.CSSProperties = {
     borderRadius: '50%',
@@ -58,21 +96,27 @@ const ChatArea: React.FC<ChatAreaProps> = ({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'flex-end',
-        height: '100%',
+        justifyContent: 'flex-start', // Changed from flex-end
+        height: '100vh', // Full viewport height
         width: '100%',
-        fontFamily: theme.typography.fontFamily.primary, // Ensure font inheritance
+        fontFamily: theme.typography.fontFamily.primary,
+        overflow: 'hidden', // Prevent overall container from scrolling
       }}
     >
+      {/* Chat messages container with constrained height */}
       <div
+        ref={chatContainerRef}
         style={{
-          flexGrow: 1,
           width: `${baseWidth}px`,
+          maxHeight: `${chatMaxHeight}px`,
           overflowY: 'auto',
           padding: '20px',
           display: 'flex',
           flexDirection: 'column',
           gap: '10px',
+          // Custom scrollbar styling
+          scrollbarWidth: 'thin',
+          scrollbarColor: `${theme.colors.accent}60 transparent`,
         }}
       >
         {messages.map((msg, index) => (
@@ -85,9 +129,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({
               padding: '10px 15px',
               borderRadius: '15px',
               maxWidth: '80%',
-              fontFamily: theme.typography.fontFamily.primary, // Explicit font for chat bubbles
+              fontFamily: theme.typography.fontFamily.primary,
               fontSize: `${theme.typography.fontSize.base}px`,
               lineHeight: '1.5',
+              wordWrap: 'break-word', // Ensure long messages wrap properly
             }}
           >
             {msg.content}
@@ -95,14 +140,18 @@ const ChatArea: React.FC<ChatAreaProps> = ({
         ))}
       </div>
 
+      {/* Fixed textbox area at bottom */}
       <div
         style={{
+          position: 'fixed', // Fixed positioning to stay at bottom
+          bottom: '80px', // Distance from bottom of viewport
+          left: '50%',
+          transform: 'translateX(-50%)', // Center horizontally
           width: `${baseWidth}px`,
-          position: 'relative',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          marginBottom: '80px',
+          zIndex: 10, // Ensure it stays above chat messages
         }}
       >
         {/* Static background container */}

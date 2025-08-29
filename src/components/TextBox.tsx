@@ -221,12 +221,15 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
   };
 
   const handlePaste = () => {
-    // Use requestAnimationFrame instead of setTimeout to ensure DOM has updated
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        adjustTextareaHeight();
-      });
-    });
+    setTimeout(() => {
+      adjustTextareaHeight();
+    }, 0);
+  };
+
+  // Handle input changes (including paste via other methods)
+  const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
+    const target = e.target as HTMLTextAreaElement;
+    onChange(target.value);
   };
 
   return (
@@ -253,12 +256,11 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
           ref={textareaRef}
           placeholder="Type your message..."
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={handleInput}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           style={{
             width: '100%',
-            height: '24px',
             minHeight: '24px',
             maxHeight: '400px',
             border: 'none',
