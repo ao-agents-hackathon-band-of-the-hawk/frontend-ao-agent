@@ -220,37 +220,55 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
     }
   };
 
-  // Updated paste handler with better timing
-  const handlePaste = (_e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    // Allow the paste to happen first
-    setTimeout(() => {
-      // Force a more aggressive height recalculation
-      const textarea = textareaRef.current;
-      if (!textarea) return;
-      
-      // First, force the browser to update the DOM
-      textarea.style.height = '24px';
-      
-      // Use requestAnimationFrame to ensure DOM is fully updated
-      requestAnimationFrame(() => {
-        const newHeight = Math.min(textarea.scrollHeight, 400);
-        textarea.style.height = `${newHeight}px`;
-        
-        if (newHeight !== textareaHeight) {
-          setTextareaHeight(newHeight);
-          onHeightChange?.(newHeight);
-        }
-      });
-    }, 10); // Slightly longer delay to ensure paste is processed
+  // Optimized paste handler - instant height calculation
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    // Get the pasted content
+    const paste = e.clipboardData.getData('text');
+    if (!paste) return;
+
+    // Pre-calculate what the new value will be
+    const target = e.target as HTMLTextAreaElement;
+    const start = target.selectionStart;
+    const end = target.selectionEnd;
+    const currentValue = target.value;
+    const newValue = currentValue.substring(0, start) + paste + currentValue.substring(end);
+
+    // Create a temporary element to calculate height instantly
+    const tempTextarea = document.createElement('textarea');
+    tempTextarea.style.cssText = getComputedStyle(textarea).cssText;
+    tempTextarea.style.height = '24px';
+    tempTextarea.style.position = 'absolute';
+    tempTextarea.style.visibility = 'hidden';
+    tempTextarea.style.whiteSpace = 'pre-wrap';
+    tempTextarea.value = newValue;
+    
+    document.body.appendChild(tempTextarea);
+    const calculatedHeight = Math.min(tempTextarea.scrollHeight, 400);
+    document.body.removeChild(tempTextarea);
+
+    // Pre-set the height before the paste happens
+    textarea.style.height = `${calculatedHeight}px`;
+    
+    // Update state synchronously
+    if (calculatedHeight !== textareaHeight) {
+      setTextareaHeight(calculatedHeight);
+      onHeightChange?.(calculatedHeight);
+    }
+
+    // Update the value (this will trigger the paste)
+    onChange(newValue);
+    
+    // Prevent the default paste to avoid double-pasting
+    e.preventDefault();
   };
 
-  // Handle input changes (including paste via other methods)
+  // Handle input changes (for typing, not paste)
   const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
     const target = e.target as HTMLTextAreaElement;
     onChange(target.value);
-    
-    // Also trigger height adjustment on input to catch any edge cases
-    setTimeout(() => adjustTextareaHeight(), 0);
   };
 
   return (
