@@ -87,6 +87,52 @@ function App() {
     ]).filter((m): m is Message => m !== null);
   };
 
+  // Export function to convert conversations to the desired JSON format
+  const exportConversationsAsJSON = useCallback(() => {
+    const systemPrompt = "You are a helpful assistant. Remember the user's personal information from previous interactions and reference it appropriately.";
+    
+    const exportedConversations = conversations.map(conversation => {
+      const messages = [
+        {
+          role: "system",
+          content: systemPrompt
+        }
+      ];
+
+      // Convert pairs to messages format
+      conversation.pairs.forEach(pair => {
+        messages.push({
+          role: "user",
+          content: pair["0"]
+        });
+        
+        if (pair["1"]) {
+          messages.push({
+            role: "assistant", 
+            content: pair["1"]
+          });
+        }
+      });
+
+      return { messages };
+    });
+
+    // Create and download the JSON file
+    const jsonData = JSON.stringify(exportedConversations, null, 2);
+    const blob = new Blob([jsonData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `chat_history_export_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    console.log(`Exported ${exportedConversations.length} conversations to JSON`);
+  }, [conversations]);
+
   // Enhanced save conversation function
   const saveCurrentConversation = useCallback(() => {
     if (currentMessages.length > 0 && !isSaving) {
@@ -293,6 +339,13 @@ function App() {
             className="px-2 py-1 bg-accent text-white border-none rounded cursor-pointer text-xs"
           >
             View Data
+          </button>
+          <button 
+            onClick={exportConversationsAsJSON}
+            className="px-2 py-1 bg-green-600 text-white border-none rounded cursor-pointer text-xs"
+            title="Export conversations as JSON file"
+          >
+            Export JSON
           </button>
           <button 
             onClick={clearAllConversations}
