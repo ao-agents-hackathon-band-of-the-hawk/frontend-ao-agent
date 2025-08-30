@@ -21,6 +21,7 @@ function App() {
   const [debugInfo, setDebugInfo] = useState('Voice mode active');
   const [isShowHistory, setIsShowHistory] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showDataModal, setShowDataModal] = useState(false);
 
   // Conversion functions
   const messagesToPairs = (messages: Message[]): Array<{ "0": string; "1": string }> => {
@@ -117,6 +118,11 @@ function App() {
     }
   };
 
+  const viewRawData = () => {
+    console.log(JSON.stringify(conversations, null, 2));
+    setShowDataModal(true);
+  };
+
   return (
     <div className="app">
       <Transition 
@@ -158,7 +164,68 @@ function App() {
         >
           Toggle Mode
         </button>
+        <button 
+          onClick={viewRawData}
+          className="mt-2 px-2 py-1 bg-accent text-white border-none rounded cursor-pointer text-xs"
+        >
+          View Raw Data
+        </button>
       </div>
+
+      {/* Raw Data Modal */}
+      {showDataModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+          }}
+          onClick={() => setShowDataModal(false)}
+        >
+          <div 
+            style={{
+              backgroundColor: 'white',
+              padding: '20px',
+              borderRadius: '8px',
+              maxWidth: '80%',
+              maxHeight: '80%',
+              overflow: 'auto',
+              position: 'relative',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setShowDataModal(false)}
+              style={{
+                position: 'absolute',
+                top: '10px',
+                right: '10px',
+                background: 'none',
+                border: 'none',
+                fontSize: '20px',
+                cursor: 'pointer',
+              }}
+            >
+              ×
+            </button>
+            <pre style={{ 
+              whiteSpace: 'pre-wrap', 
+              wordBreak: 'normal',
+              textAlign: 'left',
+              overflowWrap: 'break-word',
+            }}>
+              {JSON.stringify(conversations, null, 2)}
+            </pre>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
