@@ -15,16 +15,27 @@ interface VoiceModeRef {
   stopListening: () => void;
 }
 
-type VoiceState = 'idle' | 'listening' | 'processing' | 'waiting_response';
+type VoiceState = 'idle' | 'starting' | 'listening' | 'processing' | 'waiting_response';
 
 const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioReady }, ref) => {
   const theme = useTheme();
   
   // State management
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
+  const voiceStateRef = useRef<VoiceState>('idle');
   const [audioChunks, setAudioChunks] = useState<Float32Array[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [, setDebugInfo] = useState('Voice mode ready');
+  
+  // Add a ref to track if processing is already happening
+  const isProcessingRef = useRef(false);
+  // Store chunks to process separately from state
+  const chunksToProcessRef = useRef<Float32Array[]>([]);
+  
+  // Update ref when state changes
+  useEffect(() => {
+    voiceStateRef.current = voiceState;
+  }, [voiceState]);
   
   // Animation references
   const currentScaleRef = useRef<number>(1);
@@ -94,19 +105,40 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
   
   // Process completed audio recording
   const processAudioRecording = useCallback(() => {
-    // Get the latest chunks from state
-    setAudioChunks(currentChunks => {
-      if (currentChunks.length === 0) {
-        console.log('No audio chunks to process');
-        return currentChunks;
-      }
-      
-      console.log(`Processing ${currentChunks.length} audio chunks...`);
-      setDebugInfo(`Processing ${currentChunks.length} audio chunks...`);
-      
-      const wavBlob = createWavBlob(currentChunks);
-      setDebugInfo(`Audio ready: ${(wavBlob.size / 1024).toFixed(1)}KB`);
-      
+    // Prevent duplicate processing
+    if (isProcessingRef.current) {
+      console.log('Already processing audio, skipping...');
+      return;
+    }
+    
+    // Check if we have chunks to process
+    if (chunksToProcessRef.current.length === 0) {
+      console.log('No audio chunks to process');
+      return;
+    }
+    
+    isProcessingRef.current = true;
+    
+    // Set states for processing (VAD will be paused by caller)
+    setIsRecording(false);
+    setVoiceState('processing');
+    setDebugInfo('Processing audio...');
+    
+    console.log(`Processing ${chunksToProcessRef.current.length} audio chunks...`);
+    
+    // Process the audio (separate from React state)
+    const wavBlob = createWavBlob(chunksToProcessRef.current);
+    setDebugInfo(`Audio ready: ${(wavBlob.size / 1024).toFixed(1)}KB`);
+    
+    // Clear the chunks immediately after processing
+    chunksToProcessRef.current = [];
+    setAudioChunks([]); // Also clear state
+    
+    // Callback for parent component first
+    onAudioReady?.(wavBlob);
+    
+    // Then handle download after a brief delay to ensure processing is complete
+    setTimeout(() => {
       // Trigger download for testing
       const url = URL.createObjectURL(wavBlob);
       const a = document.createElement('a');
@@ -117,21 +149,14 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      // Callback for parent component
-      onAudioReady?.(wavBlob);
-      
-      // Start processing animation
-      setVoiceState('processing');
-      
-      // Mock 5-second processing time
+      // Mock additional processing time
       setTimeout(() => {
         setVoiceState('idle');
         setDebugInfo('Voice mode ready - Click to start listening');
-      }, 5000);
-      
-      // Clear chunks and return empty array
-      return [];
-    });
+        isProcessingRef.current = false; // Reset flag when completely done
+      }, 4000); // 4 more seconds
+    }, 1000); // 1 second delay before download
+    
   }, [createWavBlob, onAudioReady]);
   
   // VAD configuration
@@ -139,9 +164,12 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
     startOnLoad: false,
     onSpeechStart: () => {
       console.log('Speech started');
-      setDebugInfo('Listening... (speak now)');
-      setIsRecording(true);
-      setVoiceState('listening');
+      // Only transition to listening if we're in starting state
+      if (voiceState === 'starting') {
+        setDebugInfo('Listening... (speak now)');
+        setIsRecording(true);
+        setVoiceState('listening');
+      }
       
       // Clear any existing silence timeout
       if (silenceTimeoutRef.current) {
@@ -152,12 +180,15 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
     onSpeechEnd: (audio: Float32Array) => {
       console.log('Speech chunk received:', audio.length, 'samples');
       
-      // Add the chunk immediately
+      // Store chunk in both state and ref for processing
       setAudioChunks(prev => {
         const newChunks = [...prev, audio];
         console.log('Total chunks now:', newChunks.length);
         return newChunks;
       });
+      
+      // Also store in ref for immediate access during processing
+      chunksToProcessRef.current = [...chunksToProcessRef.current, audio];
       
       // Set timeout for silence detection (3 seconds)
       if (silenceTimeoutRef.current) {
@@ -166,15 +197,15 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
       
       silenceTimeoutRef.current = setTimeout(() => {
         console.log('Silence detected - processing recording');
-        setIsRecording(false);
-        setVoiceState('processing');
-        setDebugInfo('Processing audio...');
-        vad.pause(); // Stop listening
         
-        // Process the recording after a longer delay to ensure all chunks are captured
-        setTimeout(() => {
-          processAudioRecording();
-        }, 1000); // Increased delay to ensure all chunks are processed
+        // Copy current chunks to processing ref before processing
+        chunksToProcessRef.current = [...audioChunks, audio]; // Include the latest chunk
+        
+        // Pause VAD first, then process
+        vad.pause();
+        
+        // Process the recording
+        processAudioRecording();
       }, 3000); // 3 seconds of silence
     },
     onVADMisfire: () => {
@@ -281,16 +312,36 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
       case 'idle':
         setDebugInfo('Starting microphone...');
         setAudioChunks([]); // Clear previous chunks
+        chunksToProcessRef.current = []; // Clear processing chunks
+        setVoiceState('starting'); // New starting state
+        isProcessingRef.current = false; // Reset processing flag
         vad.start();
+        
+        // Auto-transition to listening after a brief moment if no immediate speech
+        setTimeout(() => {
+          if (voiceStateRef.current === 'starting') {
+            setDebugInfo('Ready - start speaking...');
+            setVoiceState('listening');
+          }
+        }, 1500);
         break;
         
+      case 'starting':
       case 'listening':
         setDebugInfo('Stopping...');
-        vad.pause();
-        setIsRecording(false);
-        if (audioChunks.length > 0) {
+        
+        // Copy current chunks for processing
+        setAudioChunks(currentChunks => {
+          chunksToProcessRef.current = [...currentChunks];
+          return currentChunks;
+        });
+        
+        if (chunksToProcessRef.current.length > 0) {
+          // Pause VAD before processing
+          vad.pause();
           processAudioRecording();
         } else {
+          vad.pause();
           setVoiceState('idle');
           setDebugInfo('Voice mode ready - Click to start listening');
         }
@@ -298,13 +349,14 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
         
       case 'processing':
         // Can't interrupt processing
+        console.log('Cannot interrupt processing');
         break;
         
       case 'waiting_response':
         // Could add ability to cancel here
         break;
     }
-  }, [voiceState, vad, audioChunks, processAudioRecording]);
+  }, [voiceState, vad, processAudioRecording]);
   
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
@@ -318,6 +370,8 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
       vad.pause();
       setVoiceState('idle');
       setIsRecording(false);
+      isProcessingRef.current = false; // Reset processing flag
+      chunksToProcessRef.current = []; // Clear processing chunks
       if (silenceTimeoutRef.current) {
         clearTimeout(silenceTimeoutRef.current);
         silenceTimeoutRef.current = null;
@@ -345,6 +399,7 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
   const getStateDisplay = () => {
     switch (voiceState) {
       case 'idle': return 'Ready - Click to start';
+      case 'starting': return 'Starting microphone...';
       case 'listening': return isRecording ? 'Recording...' : 'Listening for speech...';
       case 'processing': return 'Processing audio...';
       case 'waiting_response': return 'Waiting for AI response...';
@@ -355,12 +410,23 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
   return (
     <motion.div
       key="voice-mode"
-      ref={sphereRef}
-      style={sphereStyle}
-      onClick={handleSphereClick}
-      whileTap={voiceState !== 'processing' ? { scale: 0.95 } : {}}
+      style={{
+        position: 'relative',
+        width: '160px',
+        height: '160px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
     >
-      {/* Debug overlay - remove in production */}
+      {/* Sphere container that rotates */}
+      <div
+        ref={sphereRef}
+        style={sphereStyle}
+        onClick={handleSphereClick}
+      />
+      
+      {/* Debug overlay - positioned absolutely so it doesn't rotate with sphere */}
       <div style={{
         position: 'absolute',
         top: '180px',
