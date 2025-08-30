@@ -56,40 +56,61 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme, isC
 
   const scrollbarConfig = isChatMode ? chatScrollbarConfig : defaultScrollbarConfig;
 
-  useEffect(() => {
+  const checkScrollbarVisibility = () => {
     const textarea = targetRef.current;
     if (!textarea) return;
 
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = textarea;
-      const maxScroll = scrollHeight - clientHeight;
-      
-      // Only show scrollbar when content exceeds container AND textarea is at max height (400px)
-      if (maxScroll <= 0 || clientHeight < 400) {
-        setIsVisible(false);
-        return;
-      }
-      
-      setIsVisible(true);
-      
+    const { scrollHeight, clientHeight } = textarea;
+    const maxScroll = scrollHeight - clientHeight;
+    
+    // Show scrollbar when content exceeds container AND textarea is at max height (400px)
+    const shouldBeVisible = maxScroll > 0 && clientHeight >= 400;
+    
+    if (shouldBeVisible !== isVisible) {
+      setIsVisible(shouldBeVisible);
+    }
+    
+    if (shouldBeVisible) {
       // Calculate scroll percentage
-      const percent = scrollTop / maxScroll;
+      const scrollTop = textarea.scrollTop;
+      const percent = maxScroll > 0 ? scrollTop / maxScroll : 0;
       setScrollPercent(percent);
       
       // Calculate dynamic thumb height based on visible content ratio
       const visibleRatio = clientHeight / scrollHeight;
       const newThumbHeight = Math.max(15, visibleRatio * 100); // Minimum 15% height
       setThumbHeight(newThumbHeight);
+    }
+  };
+
+  useEffect(() => {
+    const textarea = targetRef.current;
+    if (!textarea) return;
+
+    const handleScroll = () => {
+      checkScrollbarVisibility();
     };
 
+    const handleInput = () => {
+      checkScrollbarVisibility();
+    };
+
+    // Use ResizeObserver to detect height changes (including after paste)
+    const resizeObserver = new ResizeObserver(() => {
+      checkScrollbarVisibility();
+    });
+
     textarea.addEventListener('scroll', handleScroll);
-    textarea.addEventListener('input', handleScroll);
+    textarea.addEventListener('input', handleInput);
+    resizeObserver.observe(textarea);
     
-    handleScroll();
+    // Initial check
+    checkScrollbarVisibility();
 
     return () => {
       textarea.removeEventListener('scroll', handleScroll);
-      textarea.removeEventListener('input', handleScroll);
+      textarea.removeEventListener('input', handleInput);
+      resizeObserver.disconnect();
     };
   }, [targetRef]);
 
