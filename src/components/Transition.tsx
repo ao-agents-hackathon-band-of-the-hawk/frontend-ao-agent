@@ -5,6 +5,11 @@ import { useTheme } from '../hooks/useTheme';
 import VoiceActivity from './VoiceActivity';
 import TextMode from './TextMode';
 
+interface Conversation {
+  id: string;
+  pairs: Array<{ "0": string; "1": string }>;
+}
+
 interface TransitionProps {
   isTextMode: boolean;
   isChatMode: boolean;
@@ -14,6 +19,10 @@ interface TransitionProps {
   setInputValue: (value: string) => void;
   messages: { role: 'user' | 'assistant'; content: string }[];
   onSend: () => void;
+  conversations: Conversation[];
+  loadConversation: (id: string) => void;
+  isShowHistory: boolean;
+  setIsShowHistory: (show: boolean) => void;
 }
 
 const Transition: React.FC<TransitionProps> = ({ 
@@ -24,7 +33,11 @@ const Transition: React.FC<TransitionProps> = ({
   inputValue,
   setInputValue,
   messages,
-  onSend
+  onSend,
+  conversations,
+  loadConversation,
+  isShowHistory,
+  setIsShowHistory
 }) => {
   const theme = useTheme();
   const [transitionStage, setTransitionStage] = useState<'voice' | 'expanding' | 'text'>('voice');
@@ -90,6 +103,10 @@ const Transition: React.FC<TransitionProps> = ({
             inputValue={inputValue}
             setInputValue={setInputValue}
             onSend={onSend}
+            conversations={conversations}
+            loadConversation={loadConversation}
+            isShowHistory={isShowHistory}
+            setIsShowHistory={setIsShowHistory}
           />
         )}
       </AnimatePresence>

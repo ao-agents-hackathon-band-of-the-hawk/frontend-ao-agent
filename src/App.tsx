@@ -1,30 +1,101 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Transition from './components/Transition';
 import './App.css';
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+interface Conversation {
+  id: string;
+  pairs: Array<{ "0": string; "1": string }>;
+}
 
 function App() {
   const [isTextMode, setIsTextMode] = useState(false);
   const [isChatMode, setIsChatMode] = useState(false);
   const [inputValue, setInputValue] = useState('');
-  const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const [currentMessages, setCurrentMessages] = useState<Message[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [debugInfo, setDebugInfo] = useState('Voice mode active');
+  const [isShowHistory, setIsShowHistory] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Listen for keyboard shortcut to toggle modes (spacebar or 't')
-  useEffect(() => {
-    const handleKeyPress = (event: KeyboardEvent) => {
-      if (event.code === 'Space' || event.key.toLowerCase() === 't') {
-        event.preventDefault();
-        setIsTextMode(prev => {
-          const newMode = !prev;
-          setDebugInfo(newMode ? 'Transitioning to text mode...' : 'Voice mode active');
-          return newMode;
-        });
+  // Conversion functions
+  const messagesToPairs = (messages: Message[]): Array<{ "0": string; "1": string }> => {
+    const pairs: Array<{ "0": string; "1": string }> = [];
+    for (let i = 0; i < messages.length; i += 2) {
+      const userMsg = messages[i].role === 'user' ? messages[i].content : '';
+      const aiMsg = (i + 1 < messages.length && messages[i + 1].role === 'assistant') ? messages[i + 1].content : '';
+      if (userMsg) {
+        pairs.push({ "0": userMsg, "1": aiMsg });
       }
-    };
+    }
+    return pairs;
+  };
 
+  const pairsToMessages = (pairs: Array<{ "0": string; "1": string }>): Message[] => {
+    return pairs.flatMap(pair => [
+      { role: 'user' as const, content: pair["0"] },
+      pair["1"] ? { role: 'assistant' as const, content: pair["1"] } : null
+    ]).filter((m): m is Message => m !== null);
+  };
+
+  // Load a conversation
+  const loadConversation = (id: string) => {
+    const convo = conversations.find(c => c.id === id);
+    if (convo) {
+      setCurrentMessages(pairsToMessages(convo.pairs));
+      setIsChatMode(true);
+      setIsShowHistory(false);
+    }
+  };
+
+  const handleKeyPress = useCallback((event: KeyboardEvent) => {
+    if (event.code === 'Space' || event.key.toLowerCase() === 't') {
+      event.preventDefault();
+      setIsTextMode(prevIsTextMode => {
+        const newMode = !prevIsTextMode;
+        if (!newMode) {
+          // Toggling to voice mode: Save current chat if it has messages and not saving
+          setIsSaving(true);
+          setCurrentMessages(prevMessages => {
+            if (prevMessages.length > 0 && !isSaving) {
+              const pairs = messagesToPairs(prevMessages);
+              if (pairs.length > 0) {
+                const newPairsStr = JSON.stringify(pairs);
+                setConversations(prevConvos => {
+                  if (!prevConvos.some(c => JSON.stringify(c.pairs) === newPairsStr)) {
+                    return [...prevConvos, { id: Date.now().toString(), pairs }];
+                  }
+                  return prevConvos;
+                });
+              }
+              setIsChatMode(false);
+              setInputValue('');
+              return [];
+            }
+            return prevMessages;
+          });
+          setDebugInfo('Voice mode active');
+          setIsSaving(false);
+        } else {
+          // Toggling to text mode: Start fresh
+          setDebugInfo('Transitioning to text mode...');
+          setCurrentMessages([]);
+          setIsChatMode(false);
+          setInputValue('');
+        }
+        return newMode;
+      });
+    }
+  }, [isSaving]);
+
+  useEffect(() => {
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, []);
+  }, [handleKeyPress]);
 
   const handleTransitionComplete = () => {
     setDebugInfo('Text mode active');
@@ -33,14 +104,15 @@ function App() {
 
   const handleSend = () => {
     if (inputValue.trim()) {
-      setMessages(prev => [...prev, { role: 'user', content: inputValue }]);
+      const newMessages = [...currentMessages, { role: 'user' as const, content: inputValue }];
+      setCurrentMessages(newMessages);
       setInputValue('');
       if (!isChatMode) {
         setIsChatMode(true);
       }
       // Simulate AI response (optional, can be removed if not needed)
       setTimeout(() => {
-        setMessages(prev => [...prev, { role: 'assistant', content: 'This is a simulated response.' }]);
+        setCurrentMessages(prev => [...prev, { role: 'assistant' as const, content: 'This is a simulated response.' }]);
       }, 1000);
     }
   };
@@ -53,13 +125,17 @@ function App() {
         onTransitionComplete={handleTransitionComplete}
         inputValue={inputValue}
         setInputValue={setInputValue}
-        messages={messages}
+        messages={currentMessages}
         onSend={handleSend}
         // imageUrl="/path/to/your/image.jpg" // Optional: add your custom image
+        conversations={conversations}
+        loadConversation={loadConversation}
+        isShowHistory={isShowHistory}
+        setIsShowHistory={setIsShowHistory}
       />
       
       {/* Debug controls - enhanced for voice activity troubleshooting */}
-      <div className="fixed top-5 left-5 z-[1000] bg-black/80 text-white p-3 rounded-lg text-xs font-mono max-w-[300px]">
+      <div className="fixed top-5 right-5 z-[1000] bg-black/80 text-white p-3 rounded-lg text-xs font-mono max-w-[300px]">
         <div>Press SPACE or T to toggle modes</div>
         <div>Status: {debugInfo}</div>
         <div>Mode: {isTextMode ? 'Text' : 'Voice'}</div>

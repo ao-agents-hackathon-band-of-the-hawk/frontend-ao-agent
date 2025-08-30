@@ -3,12 +3,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../hooks/useTheme';
 import TextBox from './TextBox';
 
+interface Conversation {
+  id: string;
+  pairs: Array<{ "0": string; "1": string }>;
+}
+
 interface ChatAreaProps {
   messages: { role: 'user' | 'assistant'; content: string }[];
   inputValue: string;
   setInputValue: (value: string) => void;
   onSend: () => void;
   imageUrl?: string;
+  conversations: Conversation[];
+  loadConversation: (id: string) => void;
+  isShowHistory: boolean;
+  setIsShowHistory: (show: boolean) => void;
 }
 
 const ChatArea: React.FC<ChatAreaProps> = ({
@@ -17,6 +26,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   setInputValue,
   onSend,
   imageUrl,
+  conversations,
+  loadConversation,
+  isShowHistory,
+  setIsShowHistory
 }) => {
   const theme = useTheme();
   const [textareaHeight, setTextareaHeight] = useState(24);
@@ -221,6 +234,55 @@ const ChatArea: React.FC<ChatAreaProps> = ({
         overflow: 'hidden',
       }}
     >
+      {/* Chat History Button and Panel */}
+      <div style={{ position: 'fixed', top: '20px', left: '20px', zIndex: 20 }}>
+        <button 
+          onClick={() => setIsShowHistory(!isShowHistory)}
+          style={{
+            padding: '8px 16px',
+            background: theme.colors.accent,
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+        >
+          Chat History
+        </button>
+        {isShowHistory && (
+          <div 
+            style={{
+              position: 'absolute',
+              top: '40px',
+              left: '0',
+              background: 'white',
+              padding: '16px',
+              boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+              borderRadius: '8px',
+              maxHeight: '300px',
+              overflowY: 'auto',
+              zIndex: 30,
+            }}
+          >
+            <ul style={{ listStyle: 'none', padding: 0 }}>
+              {conversations.length === 0 ? (
+                <li>No past conversations</li>
+              ) : (
+                conversations.map((convo, index) => (
+                  <li 
+                    key={convo.id} 
+                    onClick={() => loadConversation(convo.id)}
+                    style={{ cursor: 'pointer', padding: '8px 0', borderBottom: '1px solid #eee' }}
+                  >
+                    Chat {index + 1}: {convo.pairs[0]?.["0"].slice(0, 30)}...
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        )}
+      </div>
+
       {/* Chat messages area - simplified and visible */}
       <div
         style={{
