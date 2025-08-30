@@ -91,7 +91,8 @@ function App() {
   const exportConversationsAsJSON = useCallback(() => {
     const systemPrompt = "You are a helpful assistant. Remember the user's personal information from previous interactions and reference it appropriately.";
     
-    const exportedConversations = conversations.map(conversation => {
+    // Reverse the conversations array so newest entries are last
+    const exportedConversations = [...conversations].reverse().map(conversation => {
       const messages = [
         {
           role: "system",
@@ -305,7 +306,7 @@ function App() {
       />
       
       {/* Enhanced debug controls */}
-      <div className="fixed top-5 right-5 z-[1000] bg-black/80 text-white p-3 rounded-lg text-xs font-mono max-w-[380px]">
+      <div className="fixed top-5 right-5 z-[1000] bg-black/80 text-white p-3 rounded-lg text-xs font-mono max-w-[600px]">
         <div className="mb-2 text-yellow-300 font-semibold">Voice Mode Debug Panel</div>
         <div>Press SPACE or T to toggle modes</div>
         <div>Status: {debugInfo}</div>
