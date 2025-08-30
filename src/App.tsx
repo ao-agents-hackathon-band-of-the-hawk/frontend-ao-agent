@@ -269,11 +269,9 @@ function App() {
         {!isTextMode && (
           <div className="mt-2 text-[11px] opacity-80 border-t border-white/20 pt-2">
             <div className="text-green-300 font-semibold mb-1">Voice Activity Detection:</div>
-            <div>• Click sphere to start/stop listening</div>
-            <div>• Speak when listening mode is active</div>
-            <div>• 3-second silence auto-stops recording</div>
-            <div>• Audio auto-downloads for testing</div>
-            <div>• Processing shows spinning animation</div>
+            <div>• Click sphere to start/stop </div>
+            <div>• 3-second silence auto-stops </div>
+            <div>• Audio auto-downloads </div>
           </div>
         )}
         
