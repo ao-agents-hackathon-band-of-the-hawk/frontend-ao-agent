@@ -206,7 +206,7 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
         
         // Process the recording
         processAudioRecording();
-      }, 3000); // 3 seconds of silence
+      }, 2000); // 3 seconds of silence
     },
     onVADMisfire: () => {
       console.log('VAD misfire - speech segment too short');
@@ -310,20 +310,12 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
   const handleSphereClick = useCallback(() => {
     switch (voiceState) {
       case 'idle':
-        setDebugInfo('Starting microphone...');
+        setDebugInfo('Ready - start speaking...');
         setAudioChunks([]); // Clear previous chunks
         chunksToProcessRef.current = []; // Clear processing chunks
-        setVoiceState('starting'); // New starting state
+        setVoiceState('listening'); // Go directly to listening state
         isProcessingRef.current = false; // Reset processing flag
         vad.start();
-        
-        // Auto-transition to listening after a brief moment if no immediate speech
-        setTimeout(() => {
-          if (voiceStateRef.current === 'starting') {
-            setDebugInfo('Ready - start speaking...');
-            setVoiceState('listening');
-          }
-        }, 1500);
         break;
         
       case 'starting':
@@ -429,7 +421,7 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
       {/* Debug overlay - positioned absolutely so it doesn't rotate with sphere */}
       <div style={{
         position: 'absolute',
-        top: '180px',
+        top: '200px',
         left: '50%',
         transform: 'translateX(-50%)',
         background: 'rgba(0,0,0,0.8)',
