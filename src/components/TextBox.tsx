@@ -63,8 +63,8 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme, isC
     const { scrollHeight, clientHeight } = textarea;
     const maxScroll = scrollHeight - clientHeight;
     
-    // Show scrollbar when content exceeds container AND textarea is at max height (400px)
-    const shouldBeVisible = maxScroll > 0 && clientHeight >= 400;
+    // Show scrollbar only when content exceeds the max height (400px) AND there's scrollable content
+    const shouldBeVisible = maxScroll > 0 && clientHeight === 400;
     
     if (shouldBeVisible !== isVisible) {
       setIsVisible(shouldBeVisible);
