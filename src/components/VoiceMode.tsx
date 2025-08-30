@@ -206,7 +206,7 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
         
         // Process the recording
         processAudioRecording();
-      }, 2000); // 3 seconds of silence
+      }, 2000); // 2 seconds of silence
     },
     onVADMisfire: () => {
       console.log('VAD misfire - speech segment too short');
@@ -215,9 +215,9 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
     // VAD sensitivity settings
     positiveSpeechThreshold: 0.6, // Higher = less sensitive to start
     negativeSpeechThreshold: 0.3, // Lower = more sensitive to end
-    minSpeechFrames: 10, // Minimum frames for valid speech
-    preSpeechPadFrames: 5, // Padding before speech
-    redemptionFrames: 10, // Frames to wait before ending
+    minSpeechFrames: 3, // Minimum frames for valid speech
+    preSpeechPadFrames: 4, // Padding before speech
+    redemptionFrames: 8, // Frames to wait before ending
   });
   
   // Animation loop

@@ -216,7 +216,27 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme, isC
 const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChange, value, onChange, onSend, isChatMode }) => {
   const theme = useTheme();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [textareaHeight, setTextareaHeight] = useState(24);
+
+  // Auto-focus when component becomes visible
+  useEffect(() => {
+    if (isVisible && textareaRef.current) {
+      // Small delay to ensure the textarea is rendered and visible
+      const timer = setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isVisible]);
+
+  // Handle click on container to focus textarea
+  const handleContainerClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
 
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
@@ -308,9 +328,11 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
 
   return (
     <motion.div
+      ref={containerRef}
       initial={{ opacity: 0 }}
       animate={{ opacity: isVisible ? 1 : 0 }}
       transition={{ duration: 0.6, delay: isVisible ? 0 : 1.2, ease: [0.2, 0, 0.1, 1] }}
+      onClick={handleContainerClick}
       style={{
         marginRight,
         flex: 1,
@@ -318,6 +340,7 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
         display: 'flex',
         alignItems: 'center',
         position: 'relative',
+        cursor: 'text', // Show text cursor when hovering over container
       }}
     >
       <div style={{
