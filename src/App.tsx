@@ -207,6 +207,18 @@ function App() {
     }
   };
 
+  // Voice mode handlers
+  const handleAudioReady = (audioBlob: Blob) => {
+    console.log('Audio ready for processing:', audioBlob.size, 'bytes');
+    setDebugInfo(`Audio captured: ${(audioBlob.size / 1024).toFixed(1)}KB`);
+    
+    // Here you would typically send the audio to your AI service
+    // For now, just update the debug info
+    setTimeout(() => {
+      setDebugInfo('Voice mode active - ready for next recording');
+    }, 2000);
+  };
+
   const viewRawData = () => {
     console.log(JSON.stringify(conversations, null, 2));
     setShowDataModal(true);
@@ -236,6 +248,7 @@ function App() {
         setInputValue={setInputValue}
         messages={currentMessages}
         onSend={handleSend}
+        onAudioReady={handleAudioReady}
         // imageUrl="/path/to/your/image.jpg" // Optional: add your custom image
         conversations={conversations}
         loadConversation={loadConversation}
@@ -246,19 +259,25 @@ function App() {
       />
       
       {/* Enhanced debug controls */}
-      <div className="fixed top-5 right-5 z-[1000] bg-black/80 text-white p-3 rounded-lg text-xs font-mono max-w-[320px]">
+      <div className="fixed top-5 right-5 z-[1000] bg-black/80 text-white p-3 rounded-lg text-xs font-mono max-w-[380px]">
+        <div className="mb-2 text-yellow-300 font-semibold">Voice Mode Debug Panel</div>
         <div>Press SPACE or T to toggle modes</div>
         <div>Status: {debugInfo}</div>
         <div>Mode: {isTextMode ? 'Text' : 'Voice'}</div>
         <div>Conversations: {storageInfo.conversations} ({storageInfo.sizeKB} KB)</div>
+        
         {!isTextMode && (
-          <div className="mt-2 text-[11px] opacity-80">
-            Voice activity should scale the sphere.<br/>
-            Check browser console for scale values!<br/>
-            Try speaking loudly into your microphone.
+          <div className="mt-2 text-[11px] opacity-80 border-t border-white/20 pt-2">
+            <div className="text-green-300 font-semibold mb-1">Voice Activity Detection:</div>
+            <div>• Click sphere to start/stop listening</div>
+            <div>• Speak when listening mode is active</div>
+            <div>• 3-second silence auto-stops recording</div>
+            <div>• Audio auto-downloads for testing</div>
+            <div>• Processing shows spinning animation</div>
           </div>
         )}
-        <div className="flex gap-1 mt-2">
+        
+        <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-white/20">
           <button 
             onClick={() => {
               setIsTextMode(prev => {
@@ -285,6 +304,13 @@ function App() {
             Clear All
           </button>
         </div>
+        
+        {!isTextMode && (
+          <div className="mt-2 pt-2 border-t border-white/20">
+            <div className="text-blue-300 text-xs mb-1">VAD Status:</div>
+            <div className="text-xs opacity-80">Check sphere debug overlay for real-time VAD info</div>
+          </div>
+        )}
       </div>
 
       {/* Raw Data Modal */}
@@ -330,9 +356,9 @@ function App() {
             >
               ×
             </button>
-            <h3 style={{ marginBottom: '10px', color: 'black' }}>
+            <h6 style={{ marginBottom: '10px', color: 'black' }}>
               Chat History Data ({storageInfo.conversations} conversations, {storageInfo.sizeKB} KB)
-            </h3>
+            </h6>
             <pre style={{ 
               whiteSpace: 'pre-wrap', 
               wordBreak: 'normal',

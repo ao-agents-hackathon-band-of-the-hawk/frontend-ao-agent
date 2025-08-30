@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useTheme } from '../hooks/useTheme';
-import VoiceActivity from './VoiceActivity';
+import VoiceMode from './VoiceMode';
 import TextMode from './TextMode';
 
 interface Conversation {
@@ -20,6 +20,7 @@ interface TransitionProps {
   setInputValue: (value: string) => void;
   messages: { role: 'user' | 'assistant'; content: string }[];
   onSend: () => void;
+  onAudioReady?: (audioBlob: Blob) => void;
   conversations: Conversation[];
   loadConversation: (id: string) => void;
   deleteConversation: (id: string) => void;
@@ -37,6 +38,7 @@ const Transition: React.FC<TransitionProps> = ({
   setInputValue,
   messages,
   onSend,
+  onAudioReady,
   conversations,
   loadConversation,
   deleteConversation,
@@ -47,7 +49,7 @@ const Transition: React.FC<TransitionProps> = ({
   const theme = useTheme();
   const [transitionStage, setTransitionStage] = useState<'voice' | 'expanding' | 'text'>('voice');
 
-  const voiceRef = useRef<{ getCurrentSize: () => number }>(null);
+  const voiceRef = useRef<{ getCurrentSize: () => number; startListening: () => void; stopListening: () => void }>(null);
 
   // Dynamic transition starting values
   const [transitionStartSize, setTransitionStartSize] = useState(160);
@@ -95,7 +97,11 @@ const Transition: React.FC<TransitionProps> = ({
     <div style={containerStyle}>
       <AnimatePresence mode="wait">
         {transitionStage === 'voice' && (
-          <VoiceActivity ref={voiceRef} imageUrl={imageUrl} />
+          <VoiceMode 
+            ref={voiceRef} 
+            imageUrl={imageUrl} 
+            onAudioReady={onAudioReady}
+          />
         )}
 
         {(transitionStage === 'expanding' || transitionStage === 'text') && (
