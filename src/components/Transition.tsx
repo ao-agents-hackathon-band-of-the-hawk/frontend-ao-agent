@@ -8,6 +8,7 @@ import TextMode from './TextMode';
 interface Conversation {
   id: string;
   pairs: Array<{ "0": string; "1": string }>;
+  timestamp?: number;
 }
 
 interface TransitionProps {
@@ -21,6 +22,8 @@ interface TransitionProps {
   onSend: () => void;
   conversations: Conversation[];
   loadConversation: (id: string) => void;
+  deleteConversation: (id: string) => void;
+  clearAllConversations: () => void;
   isShowHistory: boolean;
   setIsShowHistory: (show: boolean) => void;
 }
@@ -36,6 +39,8 @@ const Transition: React.FC<TransitionProps> = ({
   onSend,
   conversations,
   loadConversation,
+  deleteConversation,
+  clearAllConversations,
   isShowHistory,
   setIsShowHistory
 }) => {
@@ -105,6 +110,8 @@ const Transition: React.FC<TransitionProps> = ({
             onSend={onSend}
             conversations={conversations}
             loadConversation={loadConversation}
+            deleteConversation={deleteConversation}
+            clearAllConversations={clearAllConversations}
             isShowHistory={isShowHistory}
             setIsShowHistory={setIsShowHistory}
           />
