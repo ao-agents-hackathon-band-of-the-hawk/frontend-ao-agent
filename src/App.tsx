@@ -321,7 +321,7 @@ function App() {
       />
       
       {/* Enhanced debug controls */}
-      <div className="fixed top-5 right-5 z-[1000] bg-black/80 text-white p-3 rounded-lg text-xs font-mono max-w-[600px]">
+      <div className="fixed top-5 right-5 z-[1000] bg-black/80 text-white p-3 rounded-lg text-xs font-mono max-w-[350px]">
         <div className="mb-2 text-yellow-300 font-semibold">Voice Mode Debug Panel</div>
         <div>Press SPACE or T to toggle modes</div>
         <div>Status: {debugInfo}</div>
@@ -338,18 +338,6 @@ function App() {
         )}
         
         <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-white/20">
-          <button 
-            onClick={() => {
-              setIsTextMode(prev => {
-                const newMode = !prev;
-                setDebugInfo(newMode ? 'Transitioning to text mode...' : 'Voice mode active');
-                return newMode;
-              });
-            }}
-            className="px-2 py-1 bg-accent text-white border-none rounded cursor-pointer text-xs"
-          >
-            Toggle Mode
-          </button>
           <button 
             onClick={viewRawData}
             className="px-2 py-1 bg-accent text-white border-none rounded cursor-pointer text-xs"
