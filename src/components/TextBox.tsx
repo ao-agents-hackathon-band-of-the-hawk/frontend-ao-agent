@@ -117,27 +117,52 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme, isC
       }, 0);
     };
 
+    // Handle paste events specifically for immediate scrollbar updates
+    const handlePaste = () => {
+      // Multiple timeouts to catch different phases of paste operation
+      setTimeout(() => checkScrollbarVisibility(), 0);
+      setTimeout(() => checkScrollbarVisibility(), 10);
+      setTimeout(() => checkScrollbarVisibility(), 50);
+    };
+
     // Use ResizeObserver to detect height changes (including after paste)
     const resizeObserver = new ResizeObserver(() => {
-      // Use setTimeout to ensure measurements are accurate after resize
+      // Use multiple timeouts to ensure measurements are accurate after resize
       setTimeout(() => {
         checkScrollbarVisibility();
       }, 0);
+      setTimeout(() => {
+        checkScrollbarVisibility();
+      }, 10);
     });
 
     // Use MutationObserver to catch style changes
-    const mutationObserver = new MutationObserver(() => {
-      setTimeout(() => {
-        checkScrollbarVisibility();
-      }, 0);
+    const mutationObserver = new MutationObserver((mutations) => {
+      // Check if height or scrollHeight related changes occurred
+      const hasRelevantChanges = mutations.some(mutation => 
+        mutation.type === 'attributes' && 
+        (mutation.attributeName === 'style' || mutation.attributeName === 'value')
+      );
+      
+      if (hasRelevantChanges) {
+        setTimeout(() => {
+          checkScrollbarVisibility();
+        }, 0);
+        setTimeout(() => {
+          checkScrollbarVisibility();
+        }, 10);
+      }
     });
 
     textarea.addEventListener('scroll', handleScroll);
     textarea.addEventListener('input', handleInput);
+    textarea.addEventListener('paste', handlePaste);
     resizeObserver.observe(textarea);
     mutationObserver.observe(textarea, { 
       attributes: true, 
-      attributeFilter: ['style'] 
+      attributeFilter: ['style', 'value'],
+      childList: true,
+      subtree: true
     });
     
     // Initial check with delay to ensure proper rendering
@@ -148,6 +173,7 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme, isC
     return () => {
       textarea.removeEventListener('scroll', handleScroll);
       textarea.removeEventListener('input', handleInput);
+      textarea.removeEventListener('paste', handlePaste);
       resizeObserver.disconnect();
       mutationObserver.disconnect();
     };
@@ -403,10 +429,13 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
     const newCursorPosition = start + paste.length;
     textarea.setSelectionRange(newCursorPosition, newCursorPosition);
     
-    // Clear the pasting flag after a brief delay
+    // Clear the pasting flag and force scrollbar recalculation
     setTimeout(() => {
       delete textarea.dataset.isPasting;
-    }, 10);
+      // Force scrollbar recalculation after paste
+      const scrollbarCheckEvent = new Event('paste');
+      textarea.dispatchEvent(scrollbarCheckEvent);
+    }, 20);
   };
 
   // Handle input changes (for typing, not paste)
