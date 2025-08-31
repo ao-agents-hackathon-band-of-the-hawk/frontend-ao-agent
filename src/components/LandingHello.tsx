@@ -8,7 +8,7 @@ interface Props {
 }
 
 export default function LandingHello({ onComplete }: Props) {
-  const TARGET_SPHERE_SIZE = 160
+  const TARGET_SPHERE_SIZE = 180
 
   // Fixed position and size values
   const TEXT_OFFSET_X = 5
@@ -102,7 +102,7 @@ export default function LandingHello({ onComplete }: Props) {
         // Add a smooth delay to make the transition less jarring
         setTimeout(() => {
           onComplete?.()
-        }, 800) // 800ms delay for smoother transition
+        }, 500) // 800ms delay for smoother transition
       }
     })
     return () => unsubscribe()

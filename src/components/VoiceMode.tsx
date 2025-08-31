@@ -213,7 +213,7 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
       setDebugInfo('Speech too short - keep talking...');
     },
     // VAD sensitivity settings
-    positiveSpeechThreshold: 0.7, // Higher = less sensitive to start
+    positiveSpeechThreshold: 0.6, // Higher = less sensitive to start
     negativeSpeechThreshold: 0.3, // Lower = more sensitive to end
     minSpeechFrames: 3, // Minimum frames for valid speech
     preSpeechPadFrames: 4, // Padding before speech
