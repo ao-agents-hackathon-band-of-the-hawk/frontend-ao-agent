@@ -1,9 +1,12 @@
 // src/components/TextMode.tsx
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '../hooks/useTheme';
+import { useTextMode } from '../hooks/useTextMode';
+import { useChatHistory } from '../hooks/useChatHistory';
 import TextBox from './TextBox';
 import ChatArea from './ChatArea';
+import ChatHistoryButton from './ChatHistoryButton';
 
 interface Conversation {
   id: string;
@@ -45,8 +48,23 @@ const TextMode: React.FC<TextModeProps> = ({
   setIsShowHistory
 }) => {
   const theme = useTheme();
-  const [textareaHeight, setTextareaHeight] = useState(24);
-  const [isInitialTransition, setIsInitialTransition] = useState(true);
+  const {
+    textareaHeight,
+    isInitialTransition,
+    containerHeight,
+    dimensions,
+    handleHeightChange,
+  } = useTextMode();
+
+  const {
+    handleLoadConversation,
+    handleDeleteConversation,
+    handleClearAll,
+  } = useChatHistory({
+    loadConversation,
+    deleteConversation,
+    clearAllConversations,
+  });
 
   const isExpanding = transitionStage === 'expanding';
 
@@ -68,19 +86,6 @@ const TextMode: React.FC<TextModeProps> = ({
     );
   }
 
-  // Dimensions for initial text mode (non-chat)
-  const baseWidth = 645;
-  const baseHeight = 125;
-  const sphereSize = 100;
-  const sphereX = 259;
-  const paddingX = 47;
-  const textMarginRight = '62px';
-
-  // Calculate dynamic container height
-  const containerHeight = textareaHeight > 24 
-    ? Math.max(baseHeight, textareaHeight + 50)
-    : baseHeight;
-
   const sphereStyle: React.CSSProperties = {
     borderRadius: '50%',
     background: imageUrl
@@ -94,11 +99,8 @@ const TextMode: React.FC<TextModeProps> = ({
     cursor: 'pointer',
   };
 
-  const handleHeightChange = (height: number) => {
-    setTextareaHeight(height);
-    if (isInitialTransition && transitionStage === 'text') {
-      setIsInitialTransition(false);
-    }
+  const wrappedHandleHeightChange = (height: number) => {
+    handleHeightChange(height, transitionStage);
   };
 
   return (
@@ -115,159 +117,19 @@ const TextMode: React.FC<TextModeProps> = ({
         width: '100%',
       }}
     >
-      {/* Enhanced Chat History Button and Panel */}
-      <div style={{ position: 'fixed', top: '20px', left: '20px', zIndex: 20 }}>
-        <button 
-          onClick={() => setIsShowHistory(!isShowHistory)}
-          style={{
-            padding: '8px 16px',
-            background: theme.colors.accent,
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-          }}
-        >
-          Chat History ({conversations.length})
-        </button>
-        {isShowHistory && (
-          <div 
-            style={{
-              position: 'absolute',
-              top: '40px',
-              left: '0',
-              background: 'white',
-              padding: '16px',
-              boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
-              borderRadius: '8px',
-              maxHeight: '400px',
-              minWidth: '350px',
-              overflowY: 'auto',
-              zIndex: 30,
-              border: '1px solid #e0e0e0'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h4 style={{ margin: 0, color: 'black', fontSize: '14px' }}>Chat History</h4>
-              {conversations.length > 0 && (
-                <button
-                  onClick={() => {
-                    if (confirm('Are you sure you want to clear all chat history?')) {
-                      clearAllConversations();
-                    }
-                  }}
-                  style={{
-                    padding: '4px 8px',
-                    background: '#dc3545',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '3px',
-                    cursor: 'pointer',
-                    fontSize: '11px',
-                  }}
-                >
-                  Clear All
-                </button>
-              )}
-            </div>
-            <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
-              {conversations.length === 0 ? (
-                <div style={{ 
-                  color: '#666', 
-                  fontStyle: 'italic', 
-                  textAlign: 'center', 
-                  padding: '20px',
-                  fontSize: '13px' 
-                }}>
-                  No past conversations
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {                conversations.map((convo) => {
-                    const firstMessage = convo.pairs[0]?.["0"] || 'Empty conversation';
-                    const messageCount = convo.pairs.length;
-                    
-                    return (
-                      <div 
-                        key={convo.id}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '8px 12px',
-                          border: '1px solid #eee',
-                          borderRadius: '6px',
-                          backgroundColor: '#f9f9f9',
-                          cursor: 'pointer',
-                          transition: 'background-color 0.2s',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#f0f0f0';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = '#f9f9f9';
-                        }}
-                      >
-                        <div 
-                          onClick={() => loadConversation(convo.id)}
-                          style={{ flex: 1, minWidth: 0 }}
-                        >
-                          <div style={{ 
-                            fontSize: '13px', 
-                            fontWeight: '500', 
-                            color: 'black',
-                            marginBottom: '4px',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap'
-                          }}>
-                            {firstMessage.length > 40 ? `${firstMessage.slice(0, 40)}...` : firstMessage}
-                          </div>
-                          <div style={{ 
-                            fontSize: '11px', 
-                            color: '#666',
-                            display: 'flex',
-                            justifyContent: 'space-between'
-                          }}>
-                            <span>{messageCount} message{messageCount !== 1 ? 's' : ''}</span>
-                            <span>{new Date(convo.timestamp || 0).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm('Delete this conversation?')) {
-                              deleteConversation(convo.id);
-                            }
-                          }}
-                          style={{
-                            marginLeft: '8px',
-                            padding: '4px 6px',
-                            background: '#dc3545',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '3px',
-                            cursor: 'pointer',
-                            fontSize: '10px',
-                            flexShrink: 0,
-                          }}
-                          title="Delete conversation"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Chat History Button and Panel */}
+      <ChatHistoryButton
+        conversations={conversations}
+        isShowHistory={isShowHistory}
+        onToggleHistory={() => setIsShowHistory(!isShowHistory)}
+        onLoadConversation={handleLoadConversation}
+        onDeleteConversation={handleDeleteConversation}
+        onClearAll={handleClearAll}
+      />
 
       {/* Input container for initial text mode */}
       <div style={{
-        width: `${baseWidth}px`,
+        width: `${dimensions.baseWidth}px`,
         position: 'relative',
         display: 'flex',
         alignItems: 'center',
@@ -281,7 +143,7 @@ const TextMode: React.FC<TextModeProps> = ({
             borderRadius: '50%',
           }}
           animate={{ 
-            width: [transitionStartSize, 118, baseWidth],
+            width: [transitionStartSize, 118, dimensions.baseWidth],
             height: [transitionStartSize, 118, containerHeight], 
             borderRadius: ['50%', '50%', '62px'],
           }}
@@ -296,7 +158,7 @@ const TextMode: React.FC<TextModeProps> = ({
             zIndex: 1,
             display: 'flex',
             alignItems: 'flex-start',
-            padding: transitionStage === 'text' ? `0 ${paddingX}px` : '0',
+            padding: transitionStage === 'text' ? `0 ${dimensions.paddingX}px` : '0',
             height: transitionStage === 'text' ? containerHeight : undefined,
           }}
         >
@@ -329,8 +191,8 @@ const TextMode: React.FC<TextModeProps> = ({
           {/* Text input area - appears smoothly */}
           <TextBox 
             isVisible={transitionStage === 'text'} 
-            marginRight={textMarginRight}
-            onHeightChange={handleHeightChange}
+            marginRight={dimensions.textMarginRight}
+            onHeightChange={wrappedHandleHeightChange}
             value={inputValue}
             onChange={setInputValue}
             onSend={onSend}
@@ -348,11 +210,11 @@ const TextMode: React.FC<TextModeProps> = ({
             scale: 1,
           }}
           animate={{ 
-            width: [transitionStartSize, sphereSize, sphereSize], 
-            height: [transitionStartSize, sphereSize, sphereSize],
-            x: [0, 0, sphereX],
+            width: [transitionStartSize, dimensions.sphereSize, dimensions.sphereSize], 
+            height: [transitionStartSize, dimensions.sphereSize, dimensions.sphereSize],
+            x: [0, 0, dimensions.sphereX],
             y: [0, 0, transitionStage === 'text' && textareaHeight > 24 
-              ? Math.max(0, (containerHeight - baseHeight) / 2) 
+              ? Math.max(0, (containerHeight - dimensions.baseHeight) / 2) 
               : 0],
             scale: 1,
           }}

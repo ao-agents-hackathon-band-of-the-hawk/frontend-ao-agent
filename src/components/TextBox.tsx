@@ -60,11 +60,30 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme, isC
     const textarea = targetRef.current;
     if (!textarea) return;
 
-    const { scrollHeight, clientHeight } = textarea;
-    const maxScroll = scrollHeight - clientHeight;
+    const { scrollHeight, clientHeight, offsetHeight } = textarea;
     
-    // Show scrollbar only when content exceeds the max height (400px) AND there's scrollable content
-    const shouldBeVisible = maxScroll > 0 && clientHeight === 400;
+    // Use offsetHeight as it's more reliable than clientHeight
+    const actualHeight = offsetHeight || clientHeight;
+    const maxScroll = scrollHeight - actualHeight;
+    
+    // Show scrollbar only when:
+    // 1. There's scrollable content (maxScroll > 0)
+    // 2. The textarea has reached its maximum height (400px)
+    // 3. Content actually overflows
+    const hasReachedMaxHeight = actualHeight >= 400;
+    const hasOverflow = scrollHeight > actualHeight;
+    const shouldBeVisible = hasReachedMaxHeight && hasOverflow && maxScroll > 0;
+    
+    console.log('Scrollbar check:', {
+      scrollHeight,
+      clientHeight,
+      offsetHeight: actualHeight,
+      maxScroll,
+      hasReachedMaxHeight,
+      hasOverflow,
+      shouldBeVisible,
+      currentlyVisible: isVisible
+    });
     
     if (shouldBeVisible !== isVisible) {
       setIsVisible(shouldBeVisible);
@@ -77,7 +96,7 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme, isC
       setScrollPercent(percent);
       
       // Calculate dynamic thumb height based on visible content ratio
-      const visibleRatio = clientHeight / scrollHeight;
+      const visibleRatio = actualHeight / scrollHeight;
       const newThumbHeight = Math.max(15, visibleRatio * 100); // Minimum 15% height
       setThumbHeight(newThumbHeight);
     }
@@ -92,27 +111,47 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme, isC
     };
 
     const handleInput = () => {
-      checkScrollbarVisibility();
+      // Use setTimeout to ensure DOM is updated after input
+      setTimeout(() => {
+        checkScrollbarVisibility();
+      }, 0);
     };
 
     // Use ResizeObserver to detect height changes (including after paste)
     const resizeObserver = new ResizeObserver(() => {
-      checkScrollbarVisibility();
+      // Use setTimeout to ensure measurements are accurate after resize
+      setTimeout(() => {
+        checkScrollbarVisibility();
+      }, 0);
+    });
+
+    // Use MutationObserver to catch style changes
+    const mutationObserver = new MutationObserver(() => {
+      setTimeout(() => {
+        checkScrollbarVisibility();
+      }, 0);
     });
 
     textarea.addEventListener('scroll', handleScroll);
     textarea.addEventListener('input', handleInput);
     resizeObserver.observe(textarea);
+    mutationObserver.observe(textarea, { 
+      attributes: true, 
+      attributeFilter: ['style'] 
+    });
     
-    // Initial check
-    checkScrollbarVisibility();
+    // Initial check with delay to ensure proper rendering
+    setTimeout(() => {
+      checkScrollbarVisibility();
+    }, 100);
 
     return () => {
       textarea.removeEventListener('scroll', handleScroll);
       textarea.removeEventListener('input', handleInput);
       resizeObserver.disconnect();
+      mutationObserver.disconnect();
     };
-  }, [targetRef]);
+  }, [targetRef, isVisible]);
 
   const handleScrollbarClick = (e: React.MouseEvent) => {
     const textarea = targetRef.current;
@@ -132,7 +171,7 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme, isC
     const scrollbarHeight = rect.height;
     const clickPercent = clickY / scrollbarHeight;
     
-    const maxScroll = textarea.scrollHeight - textarea.clientHeight;
+    const maxScroll = textarea.scrollHeight - (textarea.offsetHeight || textarea.clientHeight);
     textarea.scrollTop = clickPercent * maxScroll;
   };
 
@@ -146,7 +185,7 @@ const CustomScrollbar: React.FC<CustomScrollbarProps> = ({ targetRef, theme, isC
     const startScrollTop = textarea.scrollTop;
     const scrollbarRect = scrollbar.getBoundingClientRect();
     const availableSpace = scrollbarRect.height * (100 - thumbHeight) / 100; // Available space for thumb movement
-    const maxScroll = textarea.scrollHeight - textarea.clientHeight;
+    const maxScroll = textarea.scrollHeight - (textarea.offsetHeight || textarea.clientHeight);
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const deltaY = moveEvent.clientY - startY;
@@ -242,6 +281,9 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
     const textarea = textareaRef.current;
     if (!textarea) return;
 
+    // Skip adjustment if we're in the middle of a paste operation
+    if (textarea.dataset.isPasting === 'true') return;
+
     // Reset height to get proper scrollHeight
     textarea.style.height = '24px'; // Always reset to single line height first
     
@@ -291,33 +333,80 @@ const TextBox: React.FC<TextBoxProps> = ({ isVisible, marginRight, onHeightChang
     const currentValue = target.value;
     const newValue = currentValue.substring(0, start) + paste + currentValue.substring(end);
 
+    // Mark textarea as being in paste operation to prevent adjustTextareaHeight interference
+    textarea.dataset.isPasting = 'true';
+
     // Create a temporary element to calculate height instantly
     const tempTextarea = document.createElement('textarea');
-    tempTextarea.style.cssText = getComputedStyle(textarea).cssText;
-    tempTextarea.style.height = '24px';
+    
+    // Copy ALL the exact styles from the original textarea
+    const computedStyle = getComputedStyle(textarea);
     tempTextarea.style.position = 'absolute';
     tempTextarea.style.visibility = 'hidden';
+    tempTextarea.style.top = '-9999px';
+    tempTextarea.style.left = '-9999px';
+    tempTextarea.style.width = computedStyle.width;
+    tempTextarea.style.minHeight = '24px';
+    tempTextarea.style.maxHeight = 'none'; // Remove max height constraint for calculation
+    tempTextarea.style.height = 'auto';
+    tempTextarea.style.border = computedStyle.border;
+    tempTextarea.style.padding = computedStyle.padding;
+    tempTextarea.style.paddingRight = '40px'; // Match the original
+    tempTextarea.style.boxSizing = computedStyle.boxSizing;
+    tempTextarea.style.fontSize = computedStyle.fontSize;
+    tempTextarea.style.fontFamily = computedStyle.fontFamily;
+    tempTextarea.style.lineHeight = computedStyle.lineHeight;
     tempTextarea.style.whiteSpace = 'pre-wrap';
+    tempTextarea.style.wordWrap = 'break-word';
+    tempTextarea.style.overflow = 'hidden';
+    tempTextarea.style.resize = 'none';
+    
     tempTextarea.value = newValue;
     
     document.body.appendChild(tempTextarea);
-    const calculatedHeight = Math.min(tempTextarea.scrollHeight, 400);
+    
+    // Force a reflow to ensure accurate measurements
+    tempTextarea.offsetHeight;
+    
+    // Get the natural height, then apply our max constraint
+    const naturalHeight = Math.max(24, tempTextarea.scrollHeight);
+    const calculatedHeight = Math.min(naturalHeight, 400);
+    
     document.body.removeChild(tempTextarea);
 
-    // Pre-set the height before the paste happens
+    console.log('Paste calculation:', {
+      newValue: newValue.substring(0, 100) + (newValue.length > 100 ? '...' : ''),
+      naturalHeight,
+      calculatedHeight,
+      lineCount: (newValue.match(/\n/g) || []).length + 1
+    });
+
+    // Prevent the default paste first
+    e.preventDefault();
+    
+    // Set the exact height we calculated
     textarea.style.height = `${calculatedHeight}px`;
     
-    // Update state synchronously
+    // Update the value directly without triggering adjustTextareaHeight
+    textarea.value = newValue;
+    
+    // Update state and parent
     if (calculatedHeight !== textareaHeight) {
       setTextareaHeight(calculatedHeight);
       onHeightChange?.(calculatedHeight);
     }
-
-    // Update the value (this will trigger the paste)
+    
+    // Notify parent of value change
     onChange(newValue);
     
-    // Prevent the default paste to avoid double-pasting
-    e.preventDefault();
+    // Position cursor at the end of pasted content
+    const newCursorPosition = start + paste.length;
+    textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+    
+    // Clear the pasting flag after a brief delay
+    setTimeout(() => {
+      delete textarea.dataset.isPasting;
+    }, 10);
   };
 
   // Handle input changes (for typing, not paste)
