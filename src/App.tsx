@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import Transition from './components/Transition';
+import LandingHello from './components/LandingHello';
 import './App.css';
 
 interface Message {
@@ -16,6 +17,7 @@ interface Conversation {
 const STORAGE_KEY = 'chat-conversations';
 
 function App() {
+  const [showLanding, setShowLanding] = useState(true);
   const [isTextMode, setIsTextMode] = useState(false);
   const [isChatMode, setIsChatMode] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -193,7 +195,15 @@ function App() {
     console.log('Cleared all conversations from localStorage');
   };
 
+  // Handle landing page completion
+  const handleLandingComplete = () => {
+    setShowLanding(false);
+  };
+
   const handleKeyPress = useCallback((event: KeyboardEvent) => {
+    // Don't handle key presses during landing
+    if (showLanding) return;
+    
     if (event.code === 'Space' || event.key.toLowerCase() === 't') {
       event.preventDefault();
       setIsTextMode(prevIsTextMode => {
@@ -217,7 +227,7 @@ function App() {
         return newMode;
       });
     }
-  }, [saveCurrentConversation]);
+  }, [saveCurrentConversation, showLanding]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyPress);
@@ -284,6 +294,11 @@ function App() {
   };
 
   const storageInfo = getStorageInfo();
+
+  // Show landing page first
+  if (showLanding) {
+    return <LandingHello onComplete={handleLandingComplete} />;
+  }
 
   return (
     <div className="app">

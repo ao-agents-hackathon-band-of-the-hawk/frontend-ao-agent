@@ -10,29 +10,43 @@ interface Props {
 export default function LandingHello({ onComplete }: Props) {
   const TARGET_SPHERE_SIZE = 160
 
+  // Fixed position and size values
+  const TEXT_OFFSET_X = 5
+  const TEXT_OFFSET_Y = -10
+  const SPHERE_OFFSET_X = 0
+  const SPHERE_OFFSET_Y = 0
+  const SIZE_MULTIPLIER = 1
+
   // Estimate an initial "o" size from the heading's computed font-size
   const headingRef = useRef<HTMLHeadingElement | null>(null)
   const placeholderRef = useRef<HTMLSpanElement | null>(null)
   const circleRef = useRef<HTMLSpanElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [initialOSize, setInitialOSize] = useState<number>(40)
+  const [isReady, setIsReady] = useState<boolean>(false)
 
-  // Manual adjustment states
-  const [textOffsetX, setTextOffsetX] = useState<number>(0)
-  const [textOffsetY, setTextOffsetY] = useState<number>(0)
-  const [sphereOffsetX, setSphereOffsetX] = useState<number>(0)
-  const [sphereOffsetY, setSphereOffsetY] = useState<number>(0)
-  const [sizeMultiplier, setSizeMultiplier] = useState<number>(1)
-  const [isDraggingText, setIsDraggingText] = useState<boolean>(false)
-  const [isDraggingSphere, setIsDraggingSphere] = useState<boolean>(false)
-
+  // Wait for fonts to load and calculate initial size
   useEffect(() => {
-    if (!headingRef.current) return
-    const style = window.getComputedStyle(headingRef.current)
-    const fontSize = Number.parseFloat(style.fontSize || "64")
-    // Make initial size match the "o" in the font - about 50-55% of font size
-    setInitialOSize(Math.max(24, Math.round(fontSize * 0.55 * sizeMultiplier)))
-  }, [sizeMultiplier])
+    const initializeSize = async () => {
+      // Wait for fonts to load
+      if (document.fonts) {
+        await document.fonts.ready
+      }
+      
+      // Small additional delay to ensure rendering is complete
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      if (!headingRef.current) return
+      
+      const style = window.getComputedStyle(headingRef.current)
+      const fontSize = Number.parseFloat(style.fontSize || "64")
+      // Make initial size match the "o" in the font with fixed size multiplier
+      setInitialOSize(Math.max(24, Math.round(fontSize * 0.55 * SIZE_MULTIPLIER)))
+      setIsReady(true)
+    }
+
+    initializeSize()
+  }, [])
 
   // Motion value for progress
   const progress = useMotionValue(0)
@@ -49,9 +63,6 @@ export default function LandingHello({ onComplete }: Props) {
     let touchStartY = 0
 
     const handleWheel = (e: WheelEvent) => {
-      // Don't scroll if dragging
-      if (isDraggingText || isDraggingSphere) return
-      
       e.preventDefault()
       const delta = e.deltaY > 0 ? 0.2 : -0.2 // Step per wheel
       progress.set(Math.min(1, Math.max(0, progress.get() + delta)))
@@ -64,9 +75,6 @@ export default function LandingHello({ onComplete }: Props) {
     }
 
     const handleTouchMove = (e: TouchEvent) => {
-      // Don't scroll if dragging
-      if (isDraggingText || isDraggingSphere) return
-      
       if (e.touches.length === 1) {
         e.preventDefault()
         const touchY = e.touches[0].clientY
@@ -85,7 +93,7 @@ export default function LandingHello({ onComplete }: Props) {
       window.removeEventListener('touchstart', handleTouchStart)
       window.removeEventListener('touchmove', handleTouchMove)
     }
-  }, [progress, isDraggingText, isDraggingSphere])
+  }, [progress])
 
   // Call onComplete when progress reaches 1 (with smooth delay)
   useEffect(() => {
@@ -100,8 +108,10 @@ export default function LandingHello({ onComplete }: Props) {
     return () => unsubscribe()
   }, [progress, onComplete])
 
-  // Position the text so the placeholder "o" aligns with the viewport center circle
+  // Position the text with fixed offsets
   useEffect(() => {
+    if (!isReady) return // Don't position until fonts are loaded and size is calculated
+    
     const updateTextPosition = () => {
       if (!headingRef.current || !placeholderRef.current || !containerRef.current) return
 
@@ -117,9 +127,9 @@ export default function LandingHello({ onComplete }: Props) {
       const placeholderOffsetX = placeholderRect.left - headingRect.left + placeholderRect.width / 2
       const placeholderOffsetY = placeholderRect.top - headingRect.top + placeholderRect.height / 2
       
-      // Position the heading so the placeholder center aligns with viewport center + manual offsets
-      const headingLeft = viewportCenterX - containerRect.left - placeholderOffsetX + sphereOffsetX + textOffsetX
-      const headingTop = viewportCenterY - containerRect.top - placeholderOffsetY + sphereOffsetY + textOffsetY
+      // Position the heading with fixed offsets
+      const headingLeft = viewportCenterX - containerRect.left - placeholderOffsetX + SPHERE_OFFSET_X + TEXT_OFFSET_X
+      const headingTop = viewportCenterY - containerRect.top - placeholderOffsetY + SPHERE_OFFSET_Y + TEXT_OFFSET_Y
       
       headingRef.current.style.position = 'absolute'
       headingRef.current.style.left = `${headingLeft}px`
@@ -127,18 +137,25 @@ export default function LandingHello({ onComplete }: Props) {
       headingRef.current.style.transform = 'none'
     }
 
-    updateTextPosition()
+    // Initial positioning with a small delay
+    const timeoutId = setTimeout(updateTextPosition, 50)
+    
     window.addEventListener('resize', updateTextPosition)
 
-    return () => window.removeEventListener('resize', updateTextPosition)
-  }, [initialOSize, textOffsetX, textOffsetY, sphereOffsetX, sphereOffsetY])
+    return () => {
+      clearTimeout(timeoutId)
+      window.removeEventListener('resize', updateTextPosition)
+    }
+  }, [initialOSize, isReady])
 
-  // Position the circle at the center of the viewport
+  // Position the circle with fixed offsets
   useEffect(() => {
+    if (!isReady) return // Don't position until ready
+    
     const updateCirclePosition = () => {
       if (!circleRef.current || !containerRef.current) return
 
-      // Position the circle at the center of the viewport + manual offsets
+      // Position the circle at the center of the viewport with fixed offsets
       const viewportCenterX = window.innerWidth / 2
       const viewportCenterY = window.innerHeight / 2
 
@@ -146,159 +163,32 @@ export default function LandingHello({ onComplete }: Props) {
       const containerRect = containerRef.current.getBoundingClientRect()
 
       // Calculate position relative to container to center the circle in viewport
-      const left = viewportCenterX - containerRect.left + sphereOffsetX
-      const top = viewportCenterY - containerRect.top + sphereOffsetY
+      const left = viewportCenterX - containerRect.left + SPHERE_OFFSET_X
+      const top = viewportCenterY - containerRect.top + SPHERE_OFFSET_Y
 
       circleRef.current.style.left = `${left}px`
       circleRef.current.style.top = `${top}px`
     }
 
-    updateCirclePosition()
+    // Initial positioning with a small delay
+    const timeoutId = setTimeout(updateCirclePosition, 50)
+    
     window.addEventListener('resize', updateCirclePosition)
 
-    return () => window.removeEventListener('resize', updateCirclePosition)
-  }, [sphereOffsetX, sphereOffsetY])
-
-  // Mouse drag handlers for text
-  const handleTextMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault()
-    setIsDraggingText(true)
-    const startX = e.clientX - textOffsetX
-    const startY = e.clientY - textOffsetY
-
-    const handleMouseMove = (e: MouseEvent) => {
-      setTextOffsetX(e.clientX - startX)
-      setTextOffsetY(e.clientY - startY)
+    return () => {
+      clearTimeout(timeoutId)
+      window.removeEventListener('resize', updateCirclePosition)
     }
-
-    const handleMouseUp = () => {
-      setIsDraggingText(false)
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
-  }
-
-  // Mouse drag handlers for sphere
-  const handleSphereMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault()
-    setIsDraggingSphere(true)
-    const startX = e.clientX - sphereOffsetX
-    const startY = e.clientY - sphereOffsetY
-
-    const handleMouseMove = (e: MouseEvent) => {
-      setSphereOffsetX(e.clientX - startX)
-      setSphereOffsetY(e.clientY - startY)
-    }
-
-    const handleMouseUp = () => {
-      setIsDraggingSphere(false)
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
-  }
-
-  // Keyboard controls
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const step = 5
-      
-      switch (e.key) {
-        // Text movement
-        case 'ArrowUp':
-          if (e.shiftKey) setTextOffsetY(prev => prev - step)
-          break
-        case 'ArrowDown':
-          if (e.shiftKey) setTextOffsetY(prev => prev + step)
-          break
-        case 'ArrowLeft':
-          if (e.shiftKey) setTextOffsetX(prev => prev - step)
-          break
-        case 'ArrowRight':
-          if (e.shiftKey) setTextOffsetX(prev => prev + step)
-          break
-        
-        // Sphere movement
-        case 'w':
-        case 'W':
-          setSphereOffsetY(prev => prev - step)
-          break
-        case 's':
-        case 'S':
-          setSphereOffsetY(prev => prev + step)
-          break
-        case 'a':
-        case 'A':
-          setSphereOffsetX(prev => prev - step)
-          break
-        case 'd':
-        case 'D':
-          setSphereOffsetX(prev => prev + step)
-          break
-        
-        // Size adjustment
-        case '+':
-        case '=':
-          setSizeMultiplier(prev => Math.min(3, prev + 0.1))
-          break
-        case '-':
-        case '_':
-          setSizeMultiplier(prev => Math.max(0.3, prev - 0.1))
-          break
-        
-        // Reset
-        case 'r':
-        case 'R':
-          setTextOffsetX(0)
-          setTextOffsetY(0)
-          setSphereOffsetX(0)
-          setSphereOffsetY(0)
-          setSizeMultiplier(1)
-          break
-        
-        // Log current values
-        case 'l':
-        case 'L':
-          console.log('=== LANDING PAGE POSITION VALUES ===')
-          console.log(`textOffsetX: ${textOffsetX}`)
-          console.log(`textOffsetY: ${textOffsetY}`)
-          console.log(`sphereOffsetX: ${sphereOffsetX}`)
-          console.log(`sphereOffsetY: ${sphereOffsetY}`)
-          console.log(`sizeMultiplier: ${sizeMultiplier}`)
-          console.log('=====================================')
-          
-          // Also copy to clipboard if available
-          if (navigator.clipboard) {
-            const values = `textOffsetX: ${textOffsetX}, textOffsetY: ${textOffsetY}, sphereOffsetX: ${sphereOffsetX}, sphereOffsetY: ${sphereOffsetY}, sizeMultiplier: ${sizeMultiplier}`
-            navigator.clipboard.writeText(values).then(() => {
-              console.log('Values copied to clipboard!')
-            }).catch(() => {
-              console.log('Could not copy to clipboard')
-            })
-          }
-          break
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [textOffsetX, textOffsetY, sphereOffsetX, sphereOffsetY, sizeMultiplier])
+  }, [isReady])
 
   return (
     <main className="bg-background text-foreground h-screen flex items-center justify-center overflow-hidden">
       <div ref={containerRef} className="relative w-full h-full">
-        <div>
+        <div style={{ opacity: isReady ? 1 : 0, transition: 'opacity 0.2s ease-in-out' }}>
           <h1
             ref={headingRef}
             className="font-extrabold text-pretty text-center leading-none tracking-tight text-5xl md:text-7xl lg:text-8xl flex items-center select-none"
             aria-label="Hello there"
-            onMouseDown={handleTextMouseDown}
-            style={{ cursor: isDraggingText ? 'grabbing' : 'grab' }}
           >
             <motion.span style={{ opacity: textOpacity }}>Hell</motion.span>
             <span
@@ -312,7 +202,6 @@ export default function LandingHello({ onComplete }: Props) {
         <motion.span
           ref={circleRef}
           aria-hidden="true"
-          onMouseDown={handleSphereMouseDown}
           style={{
             position: 'absolute',
             width: oSize as unknown as number,
@@ -320,30 +209,10 @@ export default function LandingHello({ onComplete }: Props) {
             borderRadius: "50%",
             backgroundColor: "#C3CB9C",
             transform: 'translate(-50%, -50%)',
-            cursor: isDraggingSphere ? 'grabbing' : 'grab',
+            opacity: isReady ? 1 : 0,
+            transition: 'opacity 0.2s ease-in-out',
           }}
         />
-      </div>
-      
-      {/* Controls overlay */}
-      <div className="fixed top-5 left-5 z-[1000] bg-black/80 text-white p-3 rounded-lg text-xs font-mono max-w-[300px]">
-        <div className="mb-2 text-yellow-300 font-semibold">Landing Page Controls</div>
-        <div className="text-[10px] space-y-1">
-          <div><strong>Text:</strong> Drag or Shift+Arrows</div>
-          <div><strong>Sphere:</strong> Drag or WASD</div>
-          <div><strong>Size:</strong> +/- keys</div>
-          <div><strong>Reset:</strong> R key</div>
-          <div><strong>Log Values:</strong> L key</div>
-          <div className="pt-2 border-t border-white/20">
-            <div>Text: ({textOffsetX}, {textOffsetY})</div>
-            <div>Sphere: ({sphereOffsetX}, {sphereOffsetY})</div>
-            <div>Size: {sizeMultiplier.toFixed(1)}x</div>
-          </div>
-          <div className="pt-2 border-t border-white/20 text-green-300">
-            <div>Press L to log values to console</div>
-            <div>and copy to clipboard!</div>
-          </div>
-        </div>
       </div>
     </main>
   )
