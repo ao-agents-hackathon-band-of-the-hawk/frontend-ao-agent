@@ -206,7 +206,7 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
         
         // Process the recording
         processAudioRecording();
-      }, 2000); // 2 seconds of silence
+      }, 3000); // 3 seconds of silence
     },
     onVADMisfire: () => {
       console.log('VAD misfire - speech segment too short');
