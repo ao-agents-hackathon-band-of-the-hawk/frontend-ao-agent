@@ -221,7 +221,7 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
     negativeSpeechThreshold: 0.3, // Lower = more sensitive to end
     minSpeechFrames: 3, // Minimum frames for valid speech
     preSpeechPadFrames: 4, // Padding before speech
-    redemptionFrames: 8, // Frames to wait before ending
+    redemptionFrames: 10, // Frames to wait before ending
   });
   
   // Handle click to start/stop
