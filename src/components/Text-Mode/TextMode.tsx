@@ -1,12 +1,12 @@
 // src/components/TextMode.tsx
 import React from 'react';
 import { motion } from 'framer-motion';
-import { useTheme } from '../hooks/useTheme';
-import { useTextMode } from '../hooks/useTextMode';
-import { useChatHistory } from '../hooks/useChatHistory';
+import { useTheme } from '../../hooks/useTheme';
+import { useTextMode } from '../../hooks/useTextMode';
+import { useChatHistory } from '../../hooks/useChatHistory';
 import TextBox from './TextBox';
-import ChatArea from './ChatArea';
-import ChatHistoryButton from './ChatHistoryButton';
+import ChatArea from '../Chat-Area/ChatArea';
+import ChatHistoryButton from '../Chat-Area/ChatHistoryButton';
 
 interface Conversation {
   id: string;

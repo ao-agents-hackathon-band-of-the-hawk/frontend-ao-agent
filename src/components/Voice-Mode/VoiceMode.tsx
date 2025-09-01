@@ -2,9 +2,9 @@
 import React, { useEffect, useRef, forwardRef, useImperativeHandle, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useMicVAD } from '@ricky0123/vad-react';
-import { useTheme } from '../hooks/useTheme';
-import { SpeechService } from '../services/speechService';
-import type { SpeechResponse } from '../services/speechService';
+import { useTheme } from '../../hooks/useTheme';
+import { SpeechService } from '../../services/speechService';
+import type { SpeechResponse } from '../../services/speechService';
 import SpeechResponseModal from './SpeechResponseModal';
 
 interface VoiceModeProps {

@@ -1,4 +1,4 @@
-// src/components/TextBox/TextAreaInput.tsx
+// src/components/TextAreaInput.tsx
 import React, { useRef, useState, useEffect } from 'react';
 
 interface TextAreaInputProps {

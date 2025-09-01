@@ -1,7 +1,7 @@
 // src/components/SpeechResponseModal.tsx
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { SpeechResponse } from '../services/speechService';
+import type { SpeechResponse } from '../../services/speechService';
 
 interface SpeechResponseModalProps {
   isOpen: boolean;

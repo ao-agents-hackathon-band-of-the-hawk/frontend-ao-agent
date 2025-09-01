@@ -1,6 +1,6 @@
 // src/components/ChatHistoryButton.tsx
 import React from 'react';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '../../hooks/useTheme';
 import ChatHistoryPanel from './ChatHistoryPanel';
 
 interface Conversation {

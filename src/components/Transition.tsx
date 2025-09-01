@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useTheme } from '../hooks/useTheme';
-import VoiceMode from './VoiceMode';
-import TextMode from './TextMode';
+import VoiceMode from './Voice-Mode/VoiceMode';
+import TextMode from './Text-Mode/TextMode';
 
 interface Conversation {
   id: string;

@@ -1,8 +1,8 @@
 // src/components/TextBox.tsx
 import React, { useRef } from 'react';
 import { motion } from 'framer-motion';
-import { useTheme } from '../hooks/useTheme';
-import CustomScrollbar from './CustomScrollbar';
+import { useTheme } from '../../hooks/useTheme';
+import CustomScrollbar from '../Chat-Area/CustomScrollbar';
 import TextAreaInput from './TextAreaInput';
 
 export interface TextBoxProps {

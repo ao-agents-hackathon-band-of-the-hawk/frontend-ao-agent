@@ -1,9 +1,9 @@
 // src/components/ChatArea.tsx
 import React, { useState, useEffect } from 'react';
-import { useTheme } from '../hooks/useTheme';
-import { useChatHistory } from '../hooks/useChatHistory';
-import { useChatScrolling } from '../hooks/useChatScrolling';
-import TextBox from './TextBox';
+import { useTheme } from '../../hooks/useTheme';
+import { useChatHistory } from '../../hooks/useChatHistory';
+import { useChatScrolling } from '../../hooks/useChatScrolling';
+import TextBox from '../Text-Mode/TextBox';
 import ChatHistoryButton from './ChatHistoryButton';
 import ChatMessages from './ChatMessages';
 import ChatScrollbar from './ChatScrollbar';
