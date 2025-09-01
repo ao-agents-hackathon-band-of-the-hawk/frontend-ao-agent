@@ -3,6 +3,9 @@ import React, { useEffect, useRef, forwardRef, useImperativeHandle, useState, us
 import { motion } from 'framer-motion';
 import { useMicVAD } from '@ricky0123/vad-react';
 import { useTheme } from '../hooks/useTheme';
+import { SpeechService } from '../services/speechService';
+import type { SpeechResponse } from '../services/speechService';
+import SpeechResponseModal from './SpeechResponseModal';
 
 interface VoiceModeProps {
   imageUrl?: string;
@@ -26,6 +29,11 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
   const [audioChunks, setAudioChunks] = useState<Float32Array[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [, setDebugInfo] = useState('Voice mode ready');
+  
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [speechResponse, setSpeechResponse] = useState<SpeechResponse | undefined>();
+  const [isProcessingAPI, setIsProcessingAPI] = useState(false);
   
   // Add a ref to track if processing is already happening
   const isProcessingRef = useRef(false);
@@ -104,7 +112,7 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
   }, [sampleRate]);
   
   // Process completed audio recording
-  const processAudioRecording = useCallback(() => {
+  const processAudioRecording = useCallback(async () => {
     // Prevent duplicate processing
     if (isProcessingRef.current) {
       console.log('Already processing audio, skipping...');
@@ -137,25 +145,46 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
     // Callback for parent component first
     onAudioReady?.(wavBlob);
     
-    // Then handle download after a brief delay to ensure processing is complete
-    setTimeout(() => {
-      // Trigger download for testing
-      const url = URL.createObjectURL(wavBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `voice_recording_${Date.now()}.wav`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+    // Download the audio file (keep existing functionality)
+    const url = URL.createObjectURL(wavBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `voice_recording_${Date.now()}.wav`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    // **NEW**: Send to speech API
+    try {
+      setVoiceState('waiting_response');
+      setIsProcessingAPI(true);
+      setIsModalOpen(true); // Show modal with loading state
+      setSpeechResponse(undefined);
       
-      // Mock additional processing time
-      setTimeout(() => {
-        setVoiceState('idle');
-        setDebugInfo('Voice mode ready - Click to start listening');
-        isProcessingRef.current = false; // Reset flag when completely done
-      }, 4000); // 4 more seconds
-    }, 1000); // 1 second delay before download
+      console.log('Sending audio to speech API...');
+      const response = await SpeechService.transcribeAudio(wavBlob);
+      
+      console.log('Speech API response:', response);
+      setSpeechResponse(response);
+      
+      // Read out the AI response
+      if (response.result) {
+        SpeechService.speakText(response.result);
+      }
+      
+    } catch (error) {
+      console.error('Speech API error:', error);
+      setSpeechResponse({
+        transcription: 'Error processing speech',
+        result: `Failed to process audio: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    } finally {
+      setIsProcessingAPI(false);
+      setVoiceState('idle');
+      setDebugInfo('Voice mode ready - Click to start listening');
+      isProcessingRef.current = false; // Reset flag when completely done
+    }
     
   }, [createWavBlob, onAudioReady]);
   
@@ -350,6 +379,16 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
     }
   }, [voiceState, vad, processAudioRecording]);
   
+  // Handle modal close
+  const handleModalClose = useCallback(() => {
+    setIsModalOpen(false);
+    setSpeechResponse(undefined);
+    // Stop any ongoing speech
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+  }, []);
+  
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
     getCurrentSize: () => 160 * currentScaleRef.current,
@@ -394,50 +433,60 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
       case 'starting': return 'Starting microphone...';
       case 'listening': return isRecording ? 'Recording...' : 'Listening for speech...';
       case 'processing': return 'Processing audio...';
-      case 'waiting_response': return 'Waiting for AI response...';
+      case 'waiting_response': return 'Getting AI response...';
       default: return 'Unknown state';
     }
   };
   
   return (
-    <motion.div
-      key="voice-mode"
-      style={{
-        position: 'relative',
-        width: '160px',
-        height: '160px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      {/* Sphere container that rotates */}
-      <div
-        ref={sphereRef}
-        style={sphereStyle}
-        onClick={handleSphereClick}
+    <>
+      <motion.div
+        key="voice-mode"
+        style={{
+          position: 'relative',
+          width: '160px',
+          height: '160px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {/* Sphere container that rotates */}
+        <div
+          ref={sphereRef}
+          style={sphereStyle}
+          onClick={handleSphereClick}
+        />
+        
+        {/* Debug overlay - positioned absolutely so it doesn't rotate with sphere */}
+        <div style={{
+          position: 'absolute',
+          top: '200px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(0,0,0,0.8)',
+          color: 'white',
+          padding: '8px 12px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          whiteSpace: 'nowrap',
+          zIndex: 10,
+        }}>
+          <div>{getStateDisplay()}</div>
+          <div>Chunks: {audioChunks.length}</div>
+          <div>VAD: {vad.listening ? 'ON' : 'OFF'} | Speaking: {vad.userSpeaking ? 'YES' : 'NO'}</div>
+          {vad.errored && <div style={{color: 'red'}}>Error: {typeof vad.errored === 'string' ? vad.errored : JSON.stringify(vad.errored)}</div>}
+        </div>
+      </motion.div>
+
+      {/* Speech Response Modal */}
+      <SpeechResponseModal
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        response={speechResponse}
+        isLoading={isProcessingAPI}
       />
-      
-      {/* Debug overlay - positioned absolutely so it doesn't rotate with sphere */}
-      <div style={{
-        position: 'absolute',
-        top: '200px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        background: 'rgba(0,0,0,0.8)',
-        color: 'white',
-        padding: '8px 12px',
-        borderRadius: '4px',
-        fontSize: '12px',
-        whiteSpace: 'nowrap',
-        zIndex: 10,
-      }}>
-        <div>{getStateDisplay()}</div>
-        <div>Chunks: {audioChunks.length}</div>
-        <div>VAD: {vad.listening ? 'ON' : 'OFF'} | Speaking: {vad.userSpeaking ? 'YES' : 'NO'}</div>
-        {vad.errored && <div style={{color: 'red'}}>Error: {typeof vad.errored === 'string' ? vad.errored : JSON.stringify(vad.errored)}</div>}
-      </div>
-    </motion.div>
+    </>
   );
 });
 
