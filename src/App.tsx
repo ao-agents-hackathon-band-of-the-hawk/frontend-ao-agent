@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import Transition from './components/Transition';
-import LandingHello from './components/LandingHello';
+import LandingHello from './Pages/LandingHello';
 import './App.css';
 
 interface Message {
