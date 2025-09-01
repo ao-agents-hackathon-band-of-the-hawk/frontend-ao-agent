@@ -51,7 +51,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     messageGap: 15,
     topMargin: 35,
     topBlurHeight: 15,
-    bottomBlurHeight: 15,
+    bottomBlurHeight: 0,
     bottomMargin: 10,
     messagePadding: '10px 15px',
     maxMessageWidth: '90%',
