@@ -6,9 +6,21 @@ export interface SpeechResponse {
 }
 
 export class SpeechService {
-  private static readonly SERVER_HOST = import.meta.env.VITE_API_SERVER_HOST;
-  private static readonly SPEECH_TO_TEXT_API_URL = `http://${this.SERVER_HOST}/~speech-to-text@1.0/transcribe/infer~wasi-nn@1.0?model-id=gemma`;
-  private static readonly TEXT_TO_SPEECH_API_URL = `http://${this.SERVER_HOST}/~text-to-speech@1.0/generate`;
+  private static readonly SERVER_HOST = import.meta.env.VITE_API_SERVER_HOST || '216.81.248.2:8734';
+  private static sessionId: string = '';
+
+  // Set session ID (to be called from App.tsx)
+  static setSessionId(sessionId: string) {
+    this.sessionId = sessionId;
+  }
+
+  private static get SPEECH_TO_TEXT_API_URL() {
+    return `http://${this.SERVER_HOST}/~speech-to-text@1.0/transcribe/infer~wasi-nn@1.0?model-id=gemma&session_id=${this.sessionId}`;
+  }
+
+  private static get TEXT_TO_SPEECH_API_URL() {
+    return `http://${this.SERVER_HOST}/~text-to-speech@1.0/generate?session_id=${this.sessionId}`;
+  }
 
   /**
    * Send audio to speech-to-text API and get transcription + AI response
@@ -75,113 +87,132 @@ export class SpeechService {
    * Convert text to speech using the TTS API and play the audio
    */
   static async speakText(text: string): Promise<void> {
-    try {
-      // Clean the text using the same method
-      const cleanText = this.cleanMarkdownText(text);
-      
-      // Create JSON payload
-      const payload = {
-        result: cleanText
-      };
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Clean the text using the same method
+        const cleanText = this.cleanMarkdownText(text);
+        
+        // Create JSON payload
+        const payload = {
+          result: cleanText
+        };
 
-      console.log('Sending JSON to TTS API:', payload);
-      
-      const response = await fetch(this.TEXT_TO_SPEECH_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'audio/wav, audio/*, */*',
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        throw new Error(`TTS API error! status: ${response.status}`);
-      }
-
-      // Get the audio data as an ArrayBuffer
-      const audioArrayBuffer = await response.arrayBuffer();
-      
-      if (audioArrayBuffer.byteLength === 0) {
-        throw new Error('Received empty audio response from TTS API');
-      }
-
-      console.log(`Received audio data: ${audioArrayBuffer.byteLength} bytes`);
-
-      // Create a Blob from the audio data
-      const audioBlob = new Blob([audioArrayBuffer], { type: 'audio/wav' });
-      
-      // Download the received audio file
-      const downloadUrl = URL.createObjectURL(audioBlob);
-      const downloadLink = document.createElement('a');
-      downloadLink.href = downloadUrl;
-      downloadLink.download = `tts_response_${Date.now()}.wav`;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
-      URL.revokeObjectURL(downloadUrl);
-      
-      // Create an audio element and play it
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      
-      // Set up event handlers
-      audio.oncanplaythrough = () => {
-        console.log('Audio ready to play');
-        audio.play().catch(error => {
-          console.error('Error playing audio:', error);
+        console.log('Sending JSON to TTS API:', payload);
+        
+        const response = await fetch(this.TEXT_TO_SPEECH_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'audio/wav, audio/*, */*',
+          },
+          body: JSON.stringify(payload)
         });
-      };
-      
-      audio.onended = () => {
-        console.log('Audio playback completed');
-        URL.revokeObjectURL(audioUrl);
-      };
-      
-      audio.onerror = (error) => {
-        console.error('Audio playback error:', error);
-        URL.revokeObjectURL(audioUrl);
-      };
 
-      // Load the audio
-      audio.load();
-      
-    } catch (error) {
-      console.error('TTS API error:', error);
-      
-      // Fallback to Web Speech API if TTS API fails
-      console.log('Falling back to Web Speech API');
-      this.fallbackToWebSpeech(text);
-    }
+        if (!response.ok) {
+          throw new Error(`TTS API error! status: ${response.status}`);
+        }
+
+        // Get the audio data as an ArrayBuffer
+        const audioArrayBuffer = await response.arrayBuffer();
+        
+        if (audioArrayBuffer.byteLength === 0) {
+          throw new Error('Received empty audio response from TTS API');
+        }
+
+        console.log(`Received audio data: ${audioArrayBuffer.byteLength} bytes`);
+
+        // Create a Blob from the audio data
+        const audioBlob = new Blob([audioArrayBuffer], { type: 'audio/wav' });
+        
+        // Download the received audio file
+        const downloadUrl = URL.createObjectURL(audioBlob);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = downloadUrl;
+        downloadLink.download = `tts_response_${Date.now()}.wav`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(downloadUrl);
+        
+        // Create an audio element and play it
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        
+        // Set up event handlers
+        audio.oncanplaythrough = () => {
+          console.log('Audio ready to play');
+          audio.play().catch(error => {
+            console.error('Error playing audio:', error);
+            reject(error);
+          });
+        };
+        
+        audio.onended = () => {
+          console.log('Audio playback completed');
+          URL.revokeObjectURL(audioUrl);
+          resolve(); // Resolve the promise when audio finishes playing
+        };
+        
+        audio.onerror = (error) => {
+          console.error('Audio playback error:', error);
+          URL.revokeObjectURL(audioUrl);
+          reject(error);
+        };
+
+        // Load the audio
+        audio.load();
+        
+      } catch (error) {
+        console.error('TTS API error:', error);
+        
+        // Fallback to Web Speech API if TTS API fails
+        console.log('Falling back to Web Speech API');
+        this.fallbackToWebSpeechAsync(text).then(resolve).catch(reject);
+      }
+    });
   }
 
   /**
-   * Fallback to Web Speech API if TTS API fails
+   * Fallback to Web Speech API if TTS API fails (async version)
    */
-  private static fallbackToWebSpeech(text: string): void {
-    if ('speechSynthesis' in window) {
-      // Cancel any ongoing speech
-      window.speechSynthesis.cancel();
-      
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.9;
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
-      
-      // Optional: Set a specific voice
-      const voices = window.speechSynthesis.getVoices();
-      const preferredVoice = voices.find(voice => 
-        voice.lang.startsWith('en') && voice.name.includes('Google')
-      ) || voices[0];
-      
-      if (preferredVoice) {
-        utterance.voice = preferredVoice;
-      }
+  private static fallbackToWebSpeechAsync(text: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if ('speechSynthesis' in window) {
+        // Cancel any ongoing speech
+        window.speechSynthesis.cancel();
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.9;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        
+        // Optional: Set a specific voice
+        const voices = window.speechSynthesis.getVoices();
+        const preferredVoice = voices.find(voice => 
+          voice.lang.startsWith('en') && voice.name.includes('Google')
+        ) || voices[0];
+        
+        if (preferredVoice) {
+          utterance.voice = preferredVoice;
+        }
 
-      window.speechSynthesis.speak(utterance);
-    } else {
-      console.warn('Both TTS API and Speech synthesis failed/not supported');
-    }
+        // Set up event handlers
+        utterance.onend = () => {
+          console.log('Web Speech synthesis completed');
+          resolve();
+        };
+
+        utterance.onerror = (error) => {
+          console.error('Web Speech synthesis error:', error);
+          reject(error);
+        };
+
+        window.speechSynthesis.speak(utterance);
+      } else {
+        console.warn('Both TTS API and Speech synthesis failed/not supported');
+        reject(new Error('Speech synthesis not supported'));
+      }
+    });
   }
 
   /**

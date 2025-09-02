@@ -163,7 +163,8 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
       
       // Read out the AI response
       if (response.result) {
-        SpeechService.speakText(response.result);
+        // Keep the waiting_response state during TTS processing
+        await SpeechService.speakText(response.result);
       }
       
     } catch (error) {
@@ -173,6 +174,7 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
         result: `Failed to process audio: ${error instanceof Error ? error.message : 'Unknown error'}`
       });
     } finally {
+      // Only reset to idle after everything is complete (including TTS)
       setIsProcessingAPI(false);
       setVoiceState('idle');
       setDebugInfo('Voice mode ready - Click to start listening');
