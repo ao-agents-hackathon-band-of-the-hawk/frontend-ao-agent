@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Transition from './components/Transition';
 import LandingHello from './Pages/LandingHello';
+import { SpeechService } from './services/speechService';
 import './App.css';
 
 interface Message {
@@ -29,6 +30,9 @@ function App() {
   const [showDataModal, setShowDataModal] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false); // Start hidden by default
 
+  // Generate session ID based on timestamp
+  const [sessionId] = useState(() => Date.now().toString());
+
   // Voice debug state
   const [voiceDebugInfo, setVoiceDebugInfo] = useState({
     state: 'Ready - Click to start',
@@ -37,6 +41,11 @@ function App() {
     speaking: 'NO',
     error: null as string | null
   });
+
+  // Set session ID in SpeechService on app load
+  useEffect(() => {
+    SpeechService.setSessionId(sessionId);
+  }, [sessionId]);
 
   // Load conversations from localStorage on component mount
   useEffect(() => {
@@ -395,6 +404,7 @@ function App() {
           <div>Press SPACE or T to toggle modes</div>
           <div>Status: {debugInfo}</div>
           <div>Mode: {isTextMode ? 'Text' : 'Voice'}</div>
+          <div>Session ID: {sessionId}</div>
           <div>Conversations: {storageInfo.conversations} ({storageInfo.sizeKB} KB)</div>
           
           {/* Voice debug info - only show in voice mode */}
