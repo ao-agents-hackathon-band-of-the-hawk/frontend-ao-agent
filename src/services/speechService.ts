@@ -6,7 +6,7 @@ export interface SpeechResponse {
 }
 
 export class SpeechService {
-  private static readonly SERVER_HOST = import.meta.env.VITE_API_SERVER_HOST || '216.81.248.2:8734';
+  private static readonly SERVER_HOST = import.meta.env.VITE_API_SERVER_HOST;
   private static readonly SPEECH_TO_TEXT_API_URL = `http://${this.SERVER_HOST}/~speech-to-text@1.0/transcribe/infer~wasi-nn@1.0?model-id=gemma`;
   private static readonly TEXT_TO_SPEECH_API_URL = `http://${this.SERVER_HOST}/~text-to-speech@1.0/generate`;
 
