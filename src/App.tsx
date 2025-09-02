@@ -88,6 +88,21 @@ function App() {
     }
   }, [conversations]);
 
+  // Listen for voice conversation updates
+  useEffect(() => {
+    const handleConversationsUpdated = (event: CustomEvent) => {
+      const updatedConversations = event.detail as Conversation[];
+      setConversations(updatedConversations);
+      console.log('Parent conversations updated from voice interaction:', updatedConversations.length);
+    };
+
+    window.addEventListener('conversationsUpdated', handleConversationsUpdated as EventListener);
+    
+    return () => {
+      window.removeEventListener('conversationsUpdated', handleConversationsUpdated as EventListener);
+    };
+  }, []);
+
   // Conversion functions
   const messagesToPairs = (messages: Message[]): Array<{ "0": string; "1": string }> => {
     const pairs: Array<{ "0": string; "1": string }> = [];
@@ -379,7 +394,7 @@ function App() {
         messages={currentMessages}
         onSend={handleSend}
         onAudioReady={handleAudioReady}
-        // imageUrl="/path/to/your/image.jpg" // Optional: add your custom image
+        sessionId={sessionId}
         conversations={conversations}
         loadConversation={loadConversation}
         isShowHistory={isShowHistory}

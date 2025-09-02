@@ -1,14 +1,27 @@
-// src/components/VoiceMode.tsx
+// src/components/Voice-Mode/VoiceMode.tsx
 import React, { forwardRef, useImperativeHandle, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '../../hooks/useTheme';
 import { useVoiceLogic } from '../../hooks/useVoiceLogic';
 import { useVoiceAnimation } from '../../hooks/useVoiceAnimation';
-import SpeechResponseModal from './SpeechResponseModal';
+import ChatHistoryButton from '../Chat-Area/ChatHistoryButton';
 
 interface VoiceModeProps {
   imageUrl?: string;
   onAudioReady?: (audioBlob: Blob) => void;
+  sessionId: string; // Session ID for maintaining conversation continuity
+  // Standard conversation props (same as text mode)
+  conversations: Array<{ id: string; pairs: Array<{ "0": string; "1": string }>; timestamp?: number }>;
+  loadConversation: (id: string) => void;
+  deleteConversation: (id: string) => void;
+  clearAllConversations: () => void;
+  isShowHistory: boolean;
+  setIsShowHistory: (show: boolean) => void;
+  onConversationUpdate?: (conversations: Array<{
+    id: string;
+    pairs: Array<{ "0": string; "1": string }>;
+    timestamp?: number;
+  }>) => void; // Callback to update parent conversations
 }
 
 interface VoiceModeRef {
@@ -30,23 +43,30 @@ declare global {
   }
 }
 
-const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioReady }, ref) => {
+const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ 
+  imageUrl, 
+  onAudioReady,
+  sessionId,
+  conversations,
+  loadConversation,
+  deleteConversation,
+  clearAllConversations,
+  isShowHistory,
+  setIsShowHistory,
+  onConversationUpdate
+}, ref) => {
   const theme = useTheme();
   
-  // Use the voice logic hook
+  // Use the voice logic hook - now with session ID and conversation update callback
   const {
     voiceState,
     audioChunks,
-    isModalOpen,
-    speechResponse,
-    isProcessingAPI,
     vad,
     handleSphereClick,
-    handleModalClose,
     getStateDisplay,
     startListening,
     stopListening,
-  } = useVoiceLogic({ onAudioReady });
+  } = useVoiceLogic({ onAudioReady, sessionId, onConversationUpdate });
   
   // Use the animation hook
   const { sphereRef, getCurrentSize } = useVoiceAnimation({
@@ -65,7 +85,7 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
         error: vad.errored ? (typeof vad.errored === 'string' ? vad.errored : JSON.stringify(vad.errored)) : null
       });
     }
-  }, [audioChunks.length, vad.listening, vad.userSpeaking, vad.errored, voiceState]); // Add voiceState and remove getStateDisplay
+  }, [audioChunks.length, vad.listening, vad.userSpeaking, vad.errored, voiceState]);
   
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
@@ -92,6 +112,16 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
   
   return (
     <>
+      {/* Voice History Button - using same conversations as text mode */}
+      <ChatHistoryButton
+        conversations={conversations}
+        isShowHistory={isShowHistory}
+        onToggleHistory={() => setIsShowHistory(!isShowHistory)}
+        onLoadConversation={loadConversation}
+        onDeleteConversation={deleteConversation}
+        onClearAll={clearAllConversations}
+      />
+
       <motion.div
         key="voice-mode"
         style={{
@@ -110,14 +140,6 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
           onClick={handleSphereClick}
         />
       </motion.div>
-
-      {/* Speech Response Modal */}
-      <SpeechResponseModal
-        isOpen={isModalOpen}
-        onClose={handleModalClose}
-        response={speechResponse}
-        isLoading={isProcessingAPI}
-      />
     </>
   );
 });

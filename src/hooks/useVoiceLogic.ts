@@ -2,26 +2,35 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
 import { SpeechService } from '../services/speechService';
-import type { SpeechResponse } from '../services/speechService';
 
 export type VoiceState = 'idle' | 'starting' | 'listening' | 'processing' | 'waiting_response' | 'awakening';
 
 interface UseVoiceLogicProps {
   onAudioReady?: (audioBlob: Blob) => void;
+  sessionId: string; // Session ID for maintaining continuous conversation
+  onConversationUpdate?: (conversations: Array<{
+    id: string;
+    pairs: Array<{ "0": string; "1": string }>;
+    timestamp?: number;
+  }>) => void; // Callback to update parent conversations
 }
 
-export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
+const STORAGE_KEY = 'chat-conversations'; // Use same storage as text mode
+
+export const useVoiceLogic = ({ onAudioReady, sessionId, onConversationUpdate }: UseVoiceLogicProps) => {
   // State management
-  const [voiceState, setVoiceState] = useState<VoiceState>('awakening'); // Start with awakening
+  const [voiceState, setVoiceState] = useState<VoiceState>('awakening');
   const voiceStateRef = useRef<VoiceState>('awakening');
   const [audioChunks, setAudioChunks] = useState<Float32Array[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [, setDebugInfo] = useState('Voice mode ready');
   
-  // Modal state
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [speechResponse, setSpeechResponse] = useState<SpeechResponse | undefined>();
-  const [isProcessingAPI, setIsProcessingAPI] = useState(false);
+  // Voice conversation storage - use same format as text mode
+  const [conversations, setConversations] = useState<Array<{
+    id: string;
+    pairs: Array<{ "0": string; "1": string }>;
+    timestamp?: number;
+  }>>([]);
   
   // Add a ref to track if processing is already happening
   const isProcessingRef = useRef(false);
@@ -33,6 +42,78 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
   // Audio processing
   const sampleRate = 16000; // VAD outputs at 16kHz
   
+  // Load conversations from localStorage on component mount
+  useEffect(() => {
+    const loadConversationsFromStorage = () => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsedConversations = JSON.parse(stored);
+          parsedConversations.sort((a: any, b: any) => (b.timestamp || 0) - (a.timestamp || 0));
+          setConversations(parsedConversations);
+          console.log('Loaded conversations from localStorage:', parsedConversations.length);
+        }
+      } catch (error) {
+        console.error('Error loading conversations from localStorage:', error);
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    };
+    loadConversationsFromStorage();
+  }, []);
+
+  // Save conversations to localStorage whenever conversations array changes
+  useEffect(() => {
+    if (conversations.length > 0) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
+        console.log('Saved conversations to localStorage:', conversations.length);
+        
+        // Notify parent component of the update
+        onConversationUpdate?.(conversations);
+        
+      } catch (error) {
+        console.error('Error saving conversations to localStorage:', error);
+        if (error instanceof Error && error.name === 'QuotaExceededError') {
+          const reducedConversations = conversations.slice(0, Math.floor(conversations.length * 0.8));
+          setConversations(reducedConversations);
+          console.log('Storage quota exceeded. Reduced conversations to:', reducedConversations.length);
+        }
+      }
+    }
+  }, [conversations, onConversationUpdate]);
+  
+  // Function to save voice interaction immediately
+  const saveVoiceInteraction = useCallback((userMessage: string, aiResponse: string) => {
+    if (!userMessage || !aiResponse) return;
+    
+    setConversations(prevConvos => {
+      // Look for existing voice conversation for this session
+      const existingVoiceConvoIndex = prevConvos.findIndex(c => c.id === `voice_${sessionId}`);
+      
+      if (existingVoiceConvoIndex !== -1) {
+        // Update existing voice conversation
+        const updatedConvos = [...prevConvos];
+        const existingConvo = updatedConvos[existingVoiceConvoIndex];
+        updatedConvos[existingVoiceConvoIndex] = {
+          ...existingConvo,
+          pairs: [...existingConvo.pairs, { "0": userMessage, "1": aiResponse }],
+          timestamp: Date.now()
+        };
+        // Move to top (newest first)
+        return [updatedConvos[existingVoiceConvoIndex], ...updatedConvos.filter((_, i) => i !== existingVoiceConvoIndex)]
+          .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      } else {
+        // Create new voice conversation for this session
+        const newConversation = {
+          id: `voice_${sessionId}`,
+          pairs: [{ "0": userMessage, "1": aiResponse }],
+          timestamp: Date.now()
+        };
+        return [newConversation, ...prevConvos].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      }
+    });
+  }, [sessionId]);
+  
   // Update ref when state changes
   useEffect(() => {
     voiceStateRef.current = voiceState;
@@ -40,25 +121,22 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
   
   // Awakening animation after entering voice mode
   useEffect(() => {
-    // Start in idle, then trigger a single awakening flash
     setVoiceState('idle');
     setDebugInfo('Voice mode ready - Click to start listening');
     
-    // Small delay then trigger the awakening flash
     const flashTimer = setTimeout(() => {
       setVoiceState('awakening');
       const returnTimer = setTimeout(() => {
         setVoiceState('idle');
-      }, 200); // 0.2 seconds total animation duration
+      }, 200);
       return () => clearTimeout(returnTimer);
-    }, 100); // Brief delay after entering voice mode
+    }, 100);
 
     return () => clearTimeout(flashTimer);
-  }, []); // Empty dependency array means it runs once on mount
+  }, []);
   
   // Convert Float32Array to WAV blob
   const createWavBlob = useCallback((audioData: Float32Array[]): Blob => {
-    // Concatenate all audio chunks
     const totalLength = audioData.reduce((sum, chunk) => sum + chunk.length, 0);
     const concatenated = new Float32Array(totalLength);
     
@@ -72,7 +150,6 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
     const buffer = new ArrayBuffer(44 + concatenated.length * 2);
     const view = new DataView(buffer);
     
-    // WAV header
     const writeString = (offset: number, string: string) => {
       for (let i = 0; i < string.length; i++) {
         view.setUint8(offset + i, string.charCodeAt(i));
@@ -93,7 +170,6 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
     writeString(36, 'data');
     view.setUint32(40, concatenated.length * 2, true);
     
-    // Convert float samples to 16-bit PCM
     let offset16 = 44;
     for (let i = 0; i < concatenated.length; i++) {
       const sample = Math.max(-1, Math.min(1, concatenated[i]));
@@ -106,13 +182,11 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
   
   // Process completed audio recording
   const processAudioRecording = useCallback(async () => {
-    // Prevent duplicate processing
     if (isProcessingRef.current) {
       console.log('Already processing audio, skipping...');
       return;
     }
     
-    // Check if we have chunks to process
     if (chunksToProcessRef.current.length === 0) {
       console.log('No audio chunks to process');
       return;
@@ -120,25 +194,21 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
     
     isProcessingRef.current = true;
     
-    // Set states for processing (VAD will be paused by caller)
     setIsRecording(false);
     setVoiceState('processing');
     setDebugInfo('Processing audio...');
     
     console.log(`Processing ${chunksToProcessRef.current.length} audio chunks...`);
     
-    // Process the audio (separate from React state)
     const wavBlob = createWavBlob(chunksToProcessRef.current);
     setDebugInfo(`Audio ready: ${(wavBlob.size / 1024).toFixed(1)}KB`);
     
-    // Clear the chunks immediately after processing
     chunksToProcessRef.current = [];
-    setAudioChunks([]); // Also clear state
+    setAudioChunks([]);
     
-    // Callback for parent component first
     onAudioReady?.(wavBlob);
     
-    // Download the audio file (keep existing functionality)
+    // Download the audio file
     const url = URL.createObjectURL(wavBlob);
     const a = document.createElement('a');
     a.href = url;
@@ -148,54 +218,47 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    // **NEW**: Send to speech API
+    // Send to speech API
     try {
       setVoiceState('waiting_response');
-      setIsProcessingAPI(true);
-      setIsModalOpen(true); // Show modal with loading state
-      setSpeechResponse(undefined);
       
       console.log('Sending audio to speech API...');
       const response = await SpeechService.transcribeAudio(wavBlob);
       
       console.log('Speech API response:', response);
-      setSpeechResponse(response);
       
-      // Read out the AI response
+      // Save voice interaction immediately after getting response (before TTS)
+      if (response.transcription && response.result) {
+        console.log('Saving voice interaction immediately...');
+        saveVoiceInteraction(response.transcription, response.result);
+      }
+      
+      // Read out the AI response (after saving)
       if (response.result) {
-        // Keep the waiting_response state during TTS processing
         await SpeechService.speakText(response.result);
       }
       
     } catch (error) {
       console.error('Speech API error:', error);
-      setSpeechResponse({
-        transcription: 'Error processing speech',
-        result: `Failed to process audio: ${error instanceof Error ? error.message : 'Unknown error'}`
-      });
     } finally {
-      // Only reset to idle after everything is complete (including TTS)
-      setIsProcessingAPI(false);
       setVoiceState('idle');
       setDebugInfo('Voice mode ready - Click to start listening');
-      isProcessingRef.current = false; // Reset flag when completely done
+      isProcessingRef.current = false;
     }
     
-  }, [createWavBlob, onAudioReady]);
+  }, [createWavBlob, onAudioReady, saveVoiceInteraction]);
   
   // VAD configuration
   const vad = useMicVAD({
     startOnLoad: false,
     onSpeechStart: () => {
       console.log('Speech started');
-      // Only transition to listening if we're in starting state
       if (voiceState === 'starting') {
         setDebugInfo('Listening... (speak now)');
         setIsRecording(true);
         setVoiceState('listening');
       }
       
-      // Clear any existing silence timeout
       if (silenceTimeoutRef.current) {
         clearTimeout(silenceTimeoutRef.current);
         silenceTimeoutRef.current = null;
@@ -204,17 +267,14 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
     onSpeechEnd: (audio: Float32Array) => {
       console.log('Speech chunk received:', audio.length, 'samples');
       
-      // Store chunk in both state and ref for processing
       setAudioChunks(prev => {
         const newChunks = [...prev, audio];
         console.log('Total chunks now:', newChunks.length);
         return newChunks;
       });
       
-      // Also store in ref for immediate access during processing
       chunksToProcessRef.current = [...chunksToProcessRef.current, audio];
       
-      // Set timeout for silence detection (3 seconds)
       if (silenceTimeoutRef.current) {
         clearTimeout(silenceTimeoutRef.current);
       }
@@ -222,41 +282,35 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
       silenceTimeoutRef.current = setTimeout(() => {
         console.log('Silence detected - processing recording');
         
-        // Copy current chunks to processing ref before processing
-        chunksToProcessRef.current = [...audioChunks, audio]; // Include the latest chunk
+        chunksToProcessRef.current = [...audioChunks, audio];
         
-        // Pause VAD first, then process
         vad.pause();
-        
-        // Process the recording
         processAudioRecording();
-      }, 3000); // 3 seconds of silence
+      }, 3000);
     },
     onVADMisfire: () => {
       console.log('VAD misfire - speech segment too short');
       setDebugInfo('Speech too short - keep talking...');
     },
-    // VAD sensitivity settings
-    positiveSpeechThreshold: 0.6, // Higher = less sensitive to start
-    negativeSpeechThreshold: 0.3, // Lower = more sensitive to end
-    minSpeechFrames: 3, // Minimum frames for valid speech
-    preSpeechPadFrames: 4, // Padding before speech
-    redemptionFrames: 10, // Frames to wait before ending
+    positiveSpeechThreshold: 0.6,
+    negativeSpeechThreshold: 0.3,
+    minSpeechFrames: 3,
+    preSpeechPadFrames: 4,
+    redemptionFrames: 10,
   });
   
   // Handle click to start/stop
   const handleSphereClick = useCallback(() => {
     switch (voiceState) {
       case 'awakening':
-        // Don't allow interaction during awakening
         return;
         
       case 'idle':
         setDebugInfo('Ready - start speaking...');
-        setAudioChunks([]); // Clear previous chunks
-        chunksToProcessRef.current = []; // Clear processing chunks
-        setVoiceState('listening'); // Go directly to listening state
-        isProcessingRef.current = false; // Reset processing flag
+        setAudioChunks([]);
+        chunksToProcessRef.current = [];
+        setVoiceState('listening');
+        isProcessingRef.current = false;
         vad.start();
         break;
         
@@ -264,14 +318,12 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
       case 'listening':
         setDebugInfo('Stopping...');
         
-        // Copy current chunks for processing
         setAudioChunks(currentChunks => {
           chunksToProcessRef.current = [...currentChunks];
           return currentChunks;
         });
         
         if (chunksToProcessRef.current.length > 0) {
-          // Pause VAD before processing
           vad.pause();
           processAudioRecording();
         } else {
@@ -282,25 +334,13 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
         break;
         
       case 'processing':
-        // Can't interrupt processing
         console.log('Cannot interrupt processing');
         break;
         
       case 'waiting_response':
-        // Could add ability to cancel here
         break;
     }
   }, [voiceState, vad, processAudioRecording]);
-  
-  // Handle modal close
-  const handleModalClose = useCallback(() => {
-    setIsModalOpen(false);
-    setSpeechResponse(undefined);
-    // Stop any ongoing speech
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-  }, []);
   
   // Cleanup
   useEffect(() => {
@@ -311,7 +351,6 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
     };
   }, []);
   
-  // Debug info for current state
   const getStateDisplay = () => {
     switch (voiceState) {
       case 'awakening': return 'Awakening...';
@@ -324,7 +363,6 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
     }
   };
   
-  // Imperative handle methods
   const startListening = useCallback(() => {
     if (voiceState === 'idle') {
       handleSphereClick();
@@ -335,8 +373,8 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
     vad.pause();
     setVoiceState('idle');
     setIsRecording(false);
-    isProcessingRef.current = false; // Reset processing flag
-    chunksToProcessRef.current = []; // Clear processing chunks
+    isProcessingRef.current = false;
+    chunksToProcessRef.current = [];
     if (silenceTimeoutRef.current) {
       clearTimeout(silenceTimeoutRef.current);
       silenceTimeoutRef.current = null;
@@ -347,12 +385,9 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
     voiceState,
     audioChunks,
     isRecording,
-    isModalOpen,
-    speechResponse,
-    isProcessingAPI,
     vad,
+    conversations, // Expose conversations (same as text mode)
     handleSphereClick,
-    handleModalClose,
     getStateDisplay,
     startListening,
     stopListening,
