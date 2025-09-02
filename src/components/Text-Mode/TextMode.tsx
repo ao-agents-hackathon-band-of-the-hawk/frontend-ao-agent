@@ -1,9 +1,10 @@
-// src/components/TextMode.tsx
-import React from 'react';
+// src/components/Text-Mode/TextMode.tsx
+import React, { useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '../../hooks/useTheme';
 import { useTextMode } from '../../hooks/useTextMode';
 import { useChatHistory } from '../../hooks/useChatHistory';
+import { useTextLogic } from '../../hooks/useTextLogic';
 import TextBox from './TextBox';
 import ChatArea from '../Chat-Area/ChatArea';
 import ChatHistoryButton from '../Chat-Area/ChatHistoryButton';
@@ -22,13 +23,15 @@ interface TextModeProps {
   messages: { role: 'user' | 'assistant'; content: string }[];
   inputValue: string;
   setInputValue: (value: string) => void;
-  onSend: () => void;
+  // onSend: () => void; // Remove this - we're using handleEnhancedSend instead
   conversations: Conversation[];
   loadConversation: (id: string) => void;
   deleteConversation: (id: string) => void;
   clearAllConversations: () => void;
   isShowHistory: boolean;
   setIsShowHistory: (show: boolean) => void;
+  sessionId: string; // Add sessionId prop
+  addMessage: (message: { role: 'user' | 'assistant'; content: string }) => void; // Add function to add messages
 }
 
 const TextMode: React.FC<TextModeProps> = ({ 
@@ -39,13 +42,15 @@ const TextMode: React.FC<TextModeProps> = ({
   messages,
   inputValue,
   setInputValue,
-  onSend,
+  // onSend, // Remove this unused parameter
   conversations,
   loadConversation,
   deleteConversation,
   clearAllConversations,
   isShowHistory,
-  setIsShowHistory
+  setIsShowHistory,
+  sessionId,
+  addMessage
 }) => {
   const theme = useTheme();
   const {
@@ -66,6 +71,49 @@ const TextMode: React.FC<TextModeProps> = ({
     clearAllConversations,
   });
 
+  // Text conversation save callback
+  const handleTextMessageUpdate = useCallback((userMessage: string, aiResponse: string) => {
+    // This will be called when we get a response from the text API
+    // The actual saving will be handled by the parent component's conversation management
+    console.log('Text message updated:', { userMessage, aiResponse });
+  }, []);
+
+  // Use text logic hook
+  const { sendMessage, isLoading, error, clearError } = useTextLogic({
+    sessionId,
+    onMessageUpdate: handleTextMessageUpdate
+  });
+
+  // Enhanced send handler that uses the text service
+  const handleEnhancedSend = useCallback(async () => {
+    if (!inputValue.trim() || isLoading) return;
+
+    const userMessage = inputValue.trim();
+    
+    // Add user message immediately
+    addMessage({ role: 'user', content: userMessage });
+    setInputValue('');
+    
+    // Clear any previous errors
+    clearError();
+
+    try {
+      // Send to text API and get AI response
+      const aiResponse = await sendMessage(userMessage);
+      
+      // Add AI response
+      addMessage({ role: 'assistant', content: aiResponse });
+      
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      // Add error message as AI response
+      addMessage({ 
+        role: 'assistant', 
+        content: 'Sorry, I encountered an error processing your message. Please try again.' 
+      });
+    }
+  }, [inputValue, isLoading, addMessage, setInputValue, clearError, sendMessage]);
+
   const isExpanding = transitionStage === 'expanding';
 
   if (isChatMode) {
@@ -74,7 +122,7 @@ const TextMode: React.FC<TextModeProps> = ({
         messages={messages}
         inputValue={inputValue}
         setInputValue={setInputValue}
-        onSend={onSend}
+        onSend={handleEnhancedSend} // Use enhanced send handler
         imageUrl={imageUrl}
         conversations={conversations}
         loadConversation={loadConversation}
@@ -96,7 +144,8 @@ const TextMode: React.FC<TextModeProps> = ({
     backgroundRepeat: 'no-repeat',
     position: 'relative',
     zIndex: 2,
-    cursor: 'pointer',
+    cursor: isLoading ? 'not-allowed' : 'pointer',
+    opacity: isLoading ? 0.7 : 1,
   };
 
   const wrappedHandleHeightChange = (height: number) => {
@@ -126,6 +175,36 @@ const TextMode: React.FC<TextModeProps> = ({
         onDeleteConversation={handleDeleteConversation}
         onClearAll={handleClearAll}
       />
+
+      {/* Error Display */}
+      {error && (
+        <div style={{
+          position: 'fixed',
+          top: '80px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(220, 53, 69, 0.9)',
+          color: 'white',
+          padding: '8px 16px',
+          borderRadius: '4px',
+          zIndex: 100,
+          fontSize: '14px'
+        }}>
+          {error}
+          <button 
+            onClick={clearError}
+            style={{
+              marginLeft: '8px',
+              background: 'none',
+              border: 'none',
+              color: 'white',
+              cursor: 'pointer'
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Input container for initial text mode */}
       <div style={{
@@ -195,13 +274,13 @@ const TextMode: React.FC<TextModeProps> = ({
             onHeightChange={wrappedHandleHeightChange}
             value={inputValue}
             onChange={setInputValue}
-            onSend={onSend}
+            onSend={handleEnhancedSend} // Use enhanced send handler
           />
         </motion.div>
 
         {/* Shrinking and moving sphere */}
         <motion.div
-          onClick={onSend}
+          onClick={!isLoading ? handleEnhancedSend : undefined} // Disable click when loading
           initial={{ 
             width: transitionStartSize,
             height: transitionStartSize,
@@ -216,7 +295,7 @@ const TextMode: React.FC<TextModeProps> = ({
             y: [0, 0, transitionStage === 'text' && textareaHeight > 24 
               ? Math.max(0, (containerHeight - dimensions.baseHeight) / 2) 
               : 0],
-            scale: 1,
+            scale: isLoading ? 0.95 : 1, // Slightly smaller when loading
           }}
           transition={{
             duration: isExpanding ? 1.8 : 
@@ -228,8 +307,32 @@ const TextMode: React.FC<TextModeProps> = ({
             ...sphereStyle,
             zIndex: 2,
           }}
-        />
+        >
+          {/* Loading indicator */}
+          {isLoading && (
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '20px',
+              height: '20px',
+              border: '2px solid rgba(255,255,255,0.3)',
+              borderTop: '2px solid white',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }} />
+          )}
+        </motion.div>
       </div>
+      
+      {/* CSS for loading spinner */}
+      <style>{`
+        @keyframes spin {
+          0% { transform: translate(-50%, -50%) rotate(0deg); }
+          100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+      `}</style>
     </motion.div>
   );
 };

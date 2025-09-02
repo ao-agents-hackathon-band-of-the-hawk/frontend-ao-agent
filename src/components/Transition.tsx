@@ -20,7 +20,7 @@ interface TransitionProps {
   inputValue: string;
   setInputValue: (value: string) => void;
   messages: { role: 'user' | 'assistant'; content: string }[];
-  onSend: () => void;
+  // onSend: () => void; // Remove this since text mode handles its own send logic
   onAudioReady?: (audioBlob: Blob) => void;
   conversations: Conversation[];
   loadConversation: (id: string) => void;
@@ -28,7 +28,8 @@ interface TransitionProps {
   clearAllConversations: () => void;
   isShowHistory: boolean;
   setIsShowHistory: (show: boolean) => void;
-  sessionId: string; // Add sessionId prop
+  sessionId: string;
+  addMessage: (message: { role: 'user' | 'assistant'; content: string }) => void;
 }
 
 const Transition: React.FC<TransitionProps> = ({ 
@@ -39,7 +40,7 @@ const Transition: React.FC<TransitionProps> = ({
   inputValue,
   setInputValue,
   messages,
-  onSend,
+  // onSend, // Remove this unused parameter
   onAudioReady,
   conversations,
   loadConversation,
@@ -47,7 +48,8 @@ const Transition: React.FC<TransitionProps> = ({
   clearAllConversations,
   isShowHistory,
   setIsShowHistory,
-  sessionId
+  sessionId,
+  addMessage
 }) => {
   const theme = useTheme();
   const [transitionStage, setTransitionStage] = useState<'voice' | 'expanding' | 'text'>('voice');
@@ -217,13 +219,15 @@ const Transition: React.FC<TransitionProps> = ({
             messages={messages}
             inputValue={inputValue}
             setInputValue={setInputValue}
-            onSend={onSend}
+            // Remove onSend prop since TextMode doesn't use it anymore
             conversations={conversations}
             loadConversation={loadConversation}
             deleteConversation={deleteConversation}
             clearAllConversations={clearAllConversations}
             isShowHistory={isShowHistory}
             setIsShowHistory={setIsShowHistory}
+            sessionId={sessionId}
+            addMessage={addMessage}
           />
         )}
       </AnimatePresence>
