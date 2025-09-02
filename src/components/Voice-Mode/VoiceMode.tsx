@@ -1,5 +1,5 @@
 // src/components/VoiceMode.tsx
-import React, { forwardRef, useImperativeHandle } from 'react';
+import React, { forwardRef, useImperativeHandle, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '../../hooks/useTheme';
 import { useVoiceLogic } from '../../hooks/useVoiceLogic';
@@ -15,6 +15,19 @@ interface VoiceModeRef {
   getCurrentSize: () => number;
   startListening: () => void;
   stopListening: () => void;
+}
+
+// Global variable to store the debug callback
+declare global {
+  interface Window {
+    voiceDebugCallback?: (debugData: {
+      state: string;
+      chunks: number;
+      vadStatus: string;
+      speaking: string;
+      error?: string | null;
+    }) => void;
+  }
 }
 
 const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioReady }, ref) => {
@@ -40,6 +53,19 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
     voiceState,
     userSpeaking: vad.userSpeaking,
   });
+  
+  // Update parent with debug info using global callback
+  useEffect(() => {
+    if (window.voiceDebugCallback) {
+      window.voiceDebugCallback({
+        state: getStateDisplay(),
+        chunks: audioChunks.length,
+        vadStatus: vad.listening ? 'ON' : 'OFF',
+        speaking: vad.userSpeaking ? 'YES' : 'NO',
+        error: vad.errored ? (typeof vad.errored === 'string' ? vad.errored : JSON.stringify(vad.errored)) : null
+      });
+    }
+  }, [getStateDisplay, audioChunks.length, vad.listening, vad.userSpeaking, vad.errored]);
   
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
@@ -83,26 +109,6 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
           style={sphereStyle}
           onClick={handleSphereClick}
         />
-        
-        {/* Debug overlay - positioned absolutely so it doesn't rotate with sphere */}
-        <div style={{
-          position: 'absolute',
-          top: '200px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: 'rgba(0,0,0,0.8)',
-          color: 'white',
-          padding: '8px 12px',
-          borderRadius: '4px',
-          fontSize: '12px',
-          whiteSpace: 'nowrap',
-          zIndex: 10,
-        }}>
-          <div>{getStateDisplay()}</div>
-          <div>Chunks: {audioChunks.length}</div>
-          <div>VAD: {vad.listening ? 'ON' : 'OFF'} | Speaking: {vad.userSpeaking ? 'YES' : 'NO'}</div>
-          {vad.errored && <div style={{color: 'red'}}>Error: {typeof vad.errored === 'string' ? vad.errored : JSON.stringify(vad.errored)}</div>}
-        </div>
       </motion.div>
 
       {/* Speech Response Modal */}

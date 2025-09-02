@@ -28,6 +28,15 @@ function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [showDataModal, setShowDataModal] = useState(false);
 
+  // Voice debug state
+  const [voiceDebugInfo, setVoiceDebugInfo] = useState({
+    state: 'Ready - Click to start',
+    chunks: 0,
+    vadStatus: 'OFF',
+    speaking: 'NO',
+    error: null as string | null
+  });
+
   // Load conversations from localStorage on component mount
   useEffect(() => {
     const loadConversationsFromStorage = () => {
@@ -276,6 +285,28 @@ function App() {
     }, 2000);
   };
 
+  // Voice debug update function
+  const updateVoiceDebug = useCallback((debugData: {
+    state: string;
+    chunks: number;
+    vadStatus: string;
+    speaking: string;
+    error?: string | null;
+  }) => {
+    setVoiceDebugInfo({
+      ...debugData,
+      error: debugData.error ?? null
+    });
+  }, []);
+
+  // Set the global callback for VoiceMode to use
+  useEffect(() => {
+    window.voiceDebugCallback = updateVoiceDebug;
+    return () => {
+      delete window.voiceDebugCallback;
+    };
+  }, [updateVoiceDebug]);
+
   const viewRawData = () => {
     console.log(JSON.stringify(conversations, null, 2));
     setShowDataModal(true);
@@ -328,9 +359,20 @@ function App() {
         <div>Mode: {isTextMode ? 'Text' : 'Voice'}</div>
         <div>Conversations: {storageInfo.conversations} ({storageInfo.sizeKB} KB)</div>
         
+        {/* Voice debug info - only show in voice mode */}
+        {!isTextMode && (
+          <div className="mt-2 pt-2 border-t border-white/20">
+            <div className="text-green-300 font-semibold mb-1">Voice Activity Detection:</div>
+            <div>{voiceDebugInfo.state}</div>
+            <div>Chunks: {voiceDebugInfo.chunks}</div>
+            <div>VAD: {voiceDebugInfo.vadStatus} | Speaking: {voiceDebugInfo.speaking}</div>
+            {voiceDebugInfo.error && <div style={{color: 'red'}}>Error: {voiceDebugInfo.error}</div>}
+          </div>
+        )}
+        
         {!isTextMode && (
           <div className="mt-2 text-[11px] opacity-80 border-t border-white/20 pt-2">
-            <div className="text-green-300 font-semibold mb-1">Voice Activity Detection:</div>
+            <div className="text-blue-300 font-semibold mb-1">Voice Controls:</div>
             <div>• Click sphere to start/stop </div>
             <div>• 3-second silence auto-stops </div>
             <div>• Audio auto-downloads </div>
@@ -359,13 +401,6 @@ function App() {
             Clear All
           </button>
         </div>
-        
-        {!isTextMode && (
-          <div className="mt-2 pt-2 border-t border-white/20">
-            <div className="text-blue-300 text-xs mb-1">VAD Status:</div>
-            <div className="text-xs opacity-80">Check sphere debug overlay for real-time VAD info</div>
-          </div>
-        )}
       </div>
 
       {/* Raw Data Modal */}

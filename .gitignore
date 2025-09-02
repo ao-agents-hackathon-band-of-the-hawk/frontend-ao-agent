@@ -25,3 +25,7 @@ dist-ssr
 *.lock
 package-lock.json
 *codebase.md
+.env
+.gitignore
+Chat-Area
+Text-Mode
