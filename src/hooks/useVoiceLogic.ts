@@ -4,7 +4,7 @@ import { useMicVAD } from '@ricky0123/vad-react';
 import { SpeechService } from '../services/speechService';
 import type { SpeechResponse } from '../services/speechService';
 
-export type VoiceState = 'idle' | 'starting' | 'listening' | 'processing' | 'waiting_response';
+export type VoiceState = 'idle' | 'starting' | 'listening' | 'processing' | 'waiting_response' | 'awakening';
 
 interface UseVoiceLogicProps {
   onAudioReady?: (audioBlob: Blob) => void;
@@ -12,8 +12,8 @@ interface UseVoiceLogicProps {
 
 export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
   // State management
-  const [voiceState, setVoiceState] = useState<VoiceState>('idle');
-  const voiceStateRef = useRef<VoiceState>('idle');
+  const [voiceState, setVoiceState] = useState<VoiceState>('awakening'); // Start with awakening
+  const voiceStateRef = useRef<VoiceState>('awakening');
   const [audioChunks, setAudioChunks] = useState<Float32Array[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [, setDebugInfo] = useState('Voice mode ready');
@@ -37,6 +37,24 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
   useEffect(() => {
     voiceStateRef.current = voiceState;
   }, [voiceState]);
+  
+  // Awakening animation after entering voice mode
+  useEffect(() => {
+    // Start in idle, then trigger a single awakening flash
+    setVoiceState('idle');
+    setDebugInfo('Voice mode ready - Click to start listening');
+    
+    // Small delay then trigger the awakening flash
+    const flashTimer = setTimeout(() => {
+      setVoiceState('awakening');
+      const returnTimer = setTimeout(() => {
+        setVoiceState('idle');
+      }, 200); // 0.2 seconds total animation duration
+      return () => clearTimeout(returnTimer);
+    }, 100); // Brief delay after entering voice mode
+
+    return () => clearTimeout(flashTimer);
+  }, []); // Empty dependency array means it runs once on mount
   
   // Convert Float32Array to WAV blob
   const createWavBlob = useCallback((audioData: Float32Array[]): Blob => {
@@ -227,6 +245,10 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
   // Handle click to start/stop
   const handleSphereClick = useCallback(() => {
     switch (voiceState) {
+      case 'awakening':
+        // Don't allow interaction during awakening
+        return;
+        
       case 'idle':
         setDebugInfo('Ready - start speaking...');
         setAudioChunks([]); // Clear previous chunks
@@ -290,6 +312,7 @@ export const useVoiceLogic = ({ onAudioReady }: UseVoiceLogicProps) => {
   // Debug info for current state
   const getStateDisplay = () => {
     switch (voiceState) {
+      case 'awakening': return 'Awakening...';
       case 'idle': return 'Ready - Click to start';
       case 'starting': return 'Starting microphone...';
       case 'listening': return isRecording ? 'Recording...' : 'Listening for speech...';

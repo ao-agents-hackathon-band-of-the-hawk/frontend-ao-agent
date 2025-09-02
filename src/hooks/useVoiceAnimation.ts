@@ -34,6 +34,18 @@ export const useVoiceAnimation = ({ voiceState, userSpeaking }: UseVoiceAnimatio
     
     // Different animations based on state
     switch (voiceState) {
+      case 'awakening':
+        // Single flash - glow up then glow down in 0.2 seconds
+        breathePhaseRef.current += deltaTime * Math.PI * 2 / 0.2; // Complete one cycle in 0.2 seconds
+        
+        // Single sine wave for one quick flash up and down
+        const singleFlash = Math.abs(Math.sin(breathePhaseRef.current));
+        
+        targetScaleRef.current = 1; // No scaling
+        targetBrightnessRef.current = 1 + singleFlash * 0.6; // Brightness flash
+        targetSaturateRef.current = 1 + singleFlash * 0.5; // Saturation flash
+        break;
+        
       case 'idle':
         // Gentle breathing animation
         breathePhaseRef.current += deltaTime * Math.PI * 2 / 6; // 6-second breath cycle

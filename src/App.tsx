@@ -383,13 +383,13 @@ function App() {
       {showDebugPanel && (
         <div className="fixed top-5 right-5 z-[1000] bg-black/80 text-white p-3 rounded-lg text-xs font-mono max-w-[350px]">
           {/* Close button */}
-          <button 
+          <div 
             onClick={() => setShowDebugPanel(false)}
-            className="absolute top-2 right-2 text-white hover:text-gray-300 w-5 h-5 text-sm font-bold flex items-center justify-center cursor-pointer border-none bg-transparent"
+            className="absolute top-2 right-2 text-white cursor-pointer text-sm"
             title="Close debug panel (use showDebug() in console to reopen)"
           >
             ×
-          </button>
+          </div>
           
           <div className="mb-2 text-yellow-300 font-semibold">Voice Mode Debug Panel</div>
           <div>Press SPACE or T to toggle modes</div>
