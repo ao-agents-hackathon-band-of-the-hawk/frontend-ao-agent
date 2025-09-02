@@ -65,7 +65,7 @@ const VoiceMode = forwardRef<VoiceModeRef, VoiceModeProps>(({ imageUrl, onAudioR
         error: vad.errored ? (typeof vad.errored === 'string' ? vad.errored : JSON.stringify(vad.errored)) : null
       });
     }
-  }, [getStateDisplay, audioChunks.length, vad.listening, vad.userSpeaking, vad.errored]);
+  }, [audioChunks.length, vad.listening, vad.userSpeaking, vad.errored, voiceState]); // Add voiceState and remove getStateDisplay
   
   // Expose methods to parent
   useImperativeHandle(ref, () => ({

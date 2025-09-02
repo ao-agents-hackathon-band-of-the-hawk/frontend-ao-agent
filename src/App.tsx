@@ -27,6 +27,7 @@ function App() {
   const [isShowHistory, setIsShowHistory] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showDataModal, setShowDataModal] = useState(false);
+  const [showDebugPanel, setShowDebugPanel] = useState(false); // Start hidden by default
 
   // Voice debug state
   const [voiceDebugInfo, setVoiceDebugInfo] = useState({
@@ -285,7 +286,7 @@ function App() {
     }, 2000);
   };
 
-  // Voice debug update function
+  // Voice debug update function - memoized to prevent infinite loops
   const updateVoiceDebug = useCallback((debugData: {
     state: string;
     chunks: number;
@@ -293,17 +294,44 @@ function App() {
     speaking: string;
     error?: string | null;
   }) => {
-    setVoiceDebugInfo({
-      ...debugData,
-      error: debugData.error ?? null
+    setVoiceDebugInfo(prev => {
+      // Only update if data has actually changed to prevent unnecessary re-renders
+      const newData = {
+        ...debugData,
+        error: debugData.error ?? null
+      };
+      
+      if (JSON.stringify(prev) !== JSON.stringify(newData)) {
+        return newData;
+      }
+      return prev;
     });
   }, []);
 
   // Set the global callback for VoiceMode to use
   useEffect(() => {
     window.voiceDebugCallback = updateVoiceDebug;
+    
+    // Set up global console commands for debug panel
+    (window as any).showDebug = () => {
+      setShowDebugPanel(true);
+      console.log('Debug panel shown');
+    };
+    
+    (window as any).hideDebug = () => {
+      setShowDebugPanel(false);
+      console.log('Debug panel hidden');
+    };
+    
+    // Log available commands
+    console.log('Debug panel commands available:');
+    console.log('- showDebug() - Show the debug panel');
+    console.log('- hideDebug() - Hide the debug panel');
+    
     return () => {
       delete window.voiceDebugCallback;
+      delete (window as any).showDebug;
+      delete (window as any).hideDebug;
     };
   }, [updateVoiceDebug]);
 
@@ -351,57 +379,72 @@ function App() {
         clearAllConversations={clearAllConversations}
       />
       
-      {/* Enhanced debug controls */}
-      <div className="fixed top-5 right-5 z-[1000] bg-black/80 text-white p-3 rounded-lg text-xs font-mono max-w-[350px]">
-        <div className="mb-2 text-yellow-300 font-semibold">Voice Mode Debug Panel</div>
-        <div>Press SPACE or T to toggle modes</div>
-        <div>Status: {debugInfo}</div>
-        <div>Mode: {isTextMode ? 'Text' : 'Voice'}</div>
-        <div>Conversations: {storageInfo.conversations} ({storageInfo.sizeKB} KB)</div>
-        
-        {/* Voice debug info - only show in voice mode */}
-        {!isTextMode && (
-          <div className="mt-2 pt-2 border-t border-white/20">
-            <div className="text-green-300 font-semibold mb-1">Voice Activity Detection:</div>
-            <div>{voiceDebugInfo.state}</div>
-            <div>Chunks: {voiceDebugInfo.chunks}</div>
-            <div>VAD: {voiceDebugInfo.vadStatus} | Speaking: {voiceDebugInfo.speaking}</div>
-            {voiceDebugInfo.error && <div style={{color: 'red'}}>Error: {voiceDebugInfo.error}</div>}
+      {/* Enhanced debug controls - only show if showDebugPanel is true */}
+      {showDebugPanel && (
+        <div className="fixed top-5 right-5 z-[1000] bg-black/80 text-white p-3 rounded-lg text-xs font-mono max-w-[350px]">
+          {/* Close button */}
+          <button 
+            onClick={() => setShowDebugPanel(false)}
+            className="absolute top-2 right-2 text-white hover:text-gray-300 w-5 h-5 text-sm font-bold flex items-center justify-center cursor-pointer border-none bg-transparent"
+            title="Close debug panel (use showDebug() in console to reopen)"
+          >
+            ×
+          </button>
+          
+          <div className="mb-2 text-yellow-300 font-semibold">Voice Mode Debug Panel</div>
+          <div>Press SPACE or T to toggle modes</div>
+          <div>Status: {debugInfo}</div>
+          <div>Mode: {isTextMode ? 'Text' : 'Voice'}</div>
+          <div>Conversations: {storageInfo.conversations} ({storageInfo.sizeKB} KB)</div>
+          
+          {/* Voice debug info - only show in voice mode */}
+          {!isTextMode && (
+            <div className="mt-2 pt-2 border-t border-white/20">
+              <div className="text-green-300 font-semibold mb-1">Voice Activity Detection:</div>
+              <div>{voiceDebugInfo.state}</div>
+              <div>Chunks: {voiceDebugInfo.chunks}</div>
+              <div>VAD: {voiceDebugInfo.vadStatus} | Speaking: {voiceDebugInfo.speaking}</div>
+              {voiceDebugInfo.error && <div style={{color: 'red'}}>Error: {voiceDebugInfo.error}</div>}
+            </div>
+          )}
+          
+          {!isTextMode && (
+            <div className="mt-2 text-[11px] opacity-80 border-t border-white/20 pt-2">
+              <div className="text-blue-300 font-semibold mb-1">Voice Controls:</div>
+              <div>• Click sphere to start/stop </div>
+              <div>• 3-second silence auto-stops </div>
+              <div>• Audio auto-downloads </div>
+            </div>
+          )}
+          
+          <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-white/20">
+            <button 
+              onClick={viewRawData}
+              className="px-2 py-1 bg-accent text-white border-none rounded cursor-pointer text-xs"
+            >
+              View Data
+            </button>
+            <button 
+              onClick={exportConversationsAsJSON}
+              className="px-2 py-1 bg-green-600 text-white border-none rounded cursor-pointer text-xs"
+              title="Export conversations as JSON file"
+            >
+              Export JSON
+            </button>
+            <button 
+              onClick={clearAllConversations}
+              className="px-2 py-1 bg-red-600 text-white border-none rounded cursor-pointer text-xs"
+              title="Clear all stored conversations"
+            >
+              Clear All
+            </button>
           </div>
-        )}
-        
-        {!isTextMode && (
-          <div className="mt-2 text-[11px] opacity-80 border-t border-white/20 pt-2">
-            <div className="text-blue-300 font-semibold mb-1">Voice Controls:</div>
-            <div>• Click sphere to start/stop </div>
-            <div>• 3-second silence auto-stops </div>
-            <div>• Audio auto-downloads </div>
+          
+          <div className="mt-2 pt-2 border-t border-white/20 text-[10px] opacity-70">
+            Console: showDebug() | hideDebug()
           </div>
-        )}
-        
-        <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-white/20">
-          <button 
-            onClick={viewRawData}
-            className="px-2 py-1 bg-accent text-white border-none rounded cursor-pointer text-xs"
-          >
-            View Data
-          </button>
-          <button 
-            onClick={exportConversationsAsJSON}
-            className="px-2 py-1 bg-green-600 text-white border-none rounded cursor-pointer text-xs"
-            title="Export conversations as JSON file"
-          >
-            Export JSON
-          </button>
-          <button 
-            onClick={clearAllConversations}
-            className="px-2 py-1 bg-red-600 text-white border-none rounded cursor-pointer text-xs"
-            title="Clear all stored conversations"
-          >
-            Clear All
-          </button>
         </div>
-      </div>
+      )}
 
       {/* Raw Data Modal */}
       {showDataModal && (
