@@ -2,21 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import Transition from './components/Transition';
 import LandingHello from './Pages/LandingHello';
 import { SpeechService } from './services/speechService';
+import { TextService } from './services/textService';
 import './App.css';
-
 interface Message {
   role: 'user' | 'assistant';
   content: string;
 }
-
 interface Conversation {
   id: string;
   pairs: Array<{ "0": string; "1": string }>;
   timestamp: number; // Add timestamp for better organization
 }
-
 const STORAGE_KEY = 'chat-conversations';
-
 function App() {
   const [showLanding, setShowLanding] = useState(true);
   const [isTextMode, setIsTextMode] = useState(false);
@@ -29,10 +26,8 @@ function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [showDataModal, setShowDataModal] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false); // Start hidden by default
-
   // Generate session ID based on timestamp
   const [sessionId] = useState(() => Date.now().toString());
-
   // Voice debug state
   const [voiceDebugInfo, setVoiceDebugInfo] = useState({
     state: 'Ready - Click to start',
@@ -41,12 +36,11 @@ function App() {
     speaking: 'NO',
     error: null as string | null
   });
-
-  // Set session ID in SpeechService on app load
+  // Set session ID in both services on app load
   useEffect(() => {
     SpeechService.setSessionId(sessionId);
+    TextService.setSessionId(sessionId);
   }, [sessionId]);
-
   // Load conversations from localStorage on component mount
   useEffect(() => {
     const loadConversationsFromStorage = () => {
@@ -65,10 +59,8 @@ function App() {
         localStorage.removeItem(STORAGE_KEY);
       }
     };
-
     loadConversationsFromStorage();
   }, []);
-
   // Save conversations to localStorage whenever conversations array changes
   useEffect(() => {
     if (conversations.length > 0) {
@@ -87,7 +79,6 @@ function App() {
       }
     }
   }, [conversations]);
-
   // Listen for voice conversation updates
   useEffect(() => {
     const handleConversationsUpdated = (event: CustomEvent) => {
@@ -95,14 +86,21 @@ function App() {
       setConversations(updatedConversations);
       console.log('Parent conversations updated from voice interaction:', updatedConversations.length);
     };
-
     window.addEventListener('conversationsUpdated', handleConversationsUpdated as EventListener);
-    
+   
     return () => {
       window.removeEventListener('conversationsUpdated', handleConversationsUpdated as EventListener);
     };
   }, []);
-
+  // Add message function for text mode API integration
+  const addMessage = useCallback((message: { role: 'user' | 'assistant'; content: string }) => {
+    setCurrentMessages(prev => [...prev, message]);
+   
+    // Automatically switch to chat mode when messages are added
+    if (!isChatMode) {
+      setIsChatMode(true);
+    }
+  }, [isChatMode]);
   // Conversion functions
   const messagesToPairs = (messages: Message[]): Array<{ "0": string; "1": string }> => {
     const pairs: Array<{ "0": string; "1": string }> = [];
@@ -115,18 +113,16 @@ function App() {
     }
     return pairs;
   };
-
   const pairsToMessages = (pairs: Array<{ "0": string; "1": string }>): Message[] => {
     return pairs.flatMap(pair => [
       { role: 'user' as const, content: pair["0"] },
       pair["1"] ? { role: 'assistant' as const, content: pair["1"] } : null
     ]).filter((m): m is Message => m !== null);
   };
-
   // Export function to convert conversations to the desired JSON format
   const exportConversationsAsJSON = useCallback(() => {
     const systemPrompt = "You are a helpful assistant. Remember the user's personal information from previous interactions and reference it appropriately.";
-    
+   
     // Reverse the conversations array so newest entries are last
     const exportedConversations = [...conversations].reverse().map(conversation => {
       const messages = [
@@ -135,30 +131,27 @@ function App() {
           content: systemPrompt
         }
       ];
-
       // Convert pairs to messages format
       conversation.pairs.forEach(pair => {
         messages.push({
           role: "user",
           content: pair["0"]
         });
-        
+       
         if (pair["1"]) {
           messages.push({
-            role: "assistant", 
+            role: "assistant",
             content: pair["1"]
           });
         }
       });
-
       return { messages };
     });
-
     // Create and download the JSON file
     const jsonData = JSON.stringify(exportedConversations, null, 2);
     const blob = new Blob([jsonData], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    
+   
     const link = document.createElement('a');
     link.href = url;
     link.download = `chat_history_export_${new Date().toISOString().split('T')[0]}.json`;
@@ -166,10 +159,8 @@ function App() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-
     console.log(`Exported ${exportedConversations.length} conversations to JSON`);
   }, [conversations]);
-
   // Enhanced save conversation function
   const saveCurrentConversation = useCallback(() => {
     if (currentMessages.length > 0 && !isSaving) {
@@ -180,7 +171,7 @@ function App() {
           pairs,
           timestamp: Date.now()
         };
-        
+       
         const newPairsStr = JSON.stringify(pairs);
         setConversations(prevConvos => {
           // Check if this exact conversation already exists
@@ -199,7 +190,6 @@ function App() {
       }
     }
   }, [currentMessages, isSaving]);
-
   // Load a conversation
   const loadConversation = (id: string) => {
     const convo = conversations.find(c => c.id === id);
@@ -209,7 +199,6 @@ function App() {
       setIsShowHistory(false);
     }
   };
-
   // Delete a conversation
   const deleteConversation = (id: string) => {
     setConversations(prevConvos => {
@@ -221,95 +210,131 @@ function App() {
       return updated;
     });
   };
-
   // Clear all conversations
   const clearAllConversations = () => {
     setConversations([]);
     localStorage.removeItem(STORAGE_KEY);
     console.log('Cleared all conversations from localStorage');
   };
-
   // Handle landing page completion
   const handleLandingComplete = () => {
     setShowLanding(false);
   };
-
-  const handleKeyPress = useCallback((event: KeyboardEvent) => {
-    // Don't handle key presses during landing
-    if (showLanding) return;
-    
-    if (event.code === 'Space' || event.key.toLowerCase() === 't') {
-      event.preventDefault();
-      setIsTextMode(prevIsTextMode => {
-        const newMode = !prevIsTextMode;
-        if (!newMode) {
-          // Toggling to voice mode: Save current chat if it has messages
-          setIsSaving(true);
-          saveCurrentConversation();
-          setIsChatMode(false);
-          setInputValue('');
-          setCurrentMessages([]);
-          setDebugInfo('Voice mode active');
-          setIsSaving(false);
-        } else {
-          // Toggling to text mode: Start fresh
-          setDebugInfo('Transitioning to text mode...');
-          setCurrentMessages([]);
-          setIsChatMode(false);
-          setInputValue('');
-        }
-        return newMode;
-      });
-    }
-  }, [saveCurrentConversation, showLanding]);
-
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [handleKeyPress]);
-
+    const lastSwitchTime = { current: 0 };
+    const touchStartY = { current: 0 };
+    let scrollAccumulator = 0;
+    const BASE_SCROLL_THRESHOLD = 200; // Base scroll gap
+    const SCROLL_THRESHOLD = BASE_SCROLL_THRESHOLD * 1.3; // 30% extra scroll for all mode switches
+    const handleWheel = (e: WheelEvent) => {
+      if (showLanding) return;
+      if (Date.now() - lastSwitchTime.current < 300) return;
+      e.preventDefault();
+      const delta = e.deltaY;
+      scrollAccumulator += delta;
+      if (Math.abs(scrollAccumulator) >= SCROLL_THRESHOLD) {
+        lastSwitchTime.current = Date.now();
+        const direction = scrollAccumulator > 0 ? 'down' : 'up';
+        if (direction === 'down') {
+          if (!isTextMode) {
+            setIsTextMode(true);
+            setIsChatMode(false);
+            setInputValue('');
+            setCurrentMessages([]);
+            setDebugInfo('Transitioning to text mode...');
+          }
+        } else {
+          if (isTextMode) {
+            setIsSaving(true);
+            saveCurrentConversation();
+            setIsTextMode(false);
+            setIsChatMode(false);
+            setInputValue('');
+            setCurrentMessages([]);
+            setDebugInfo('Voice mode active');
+            setIsSaving(false);
+          } else {
+            setShowLanding(true);
+          }
+        }
+        scrollAccumulator = 0; // Reset accumulator after mode switch
+      }
+    };
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        touchStartY.current = e.touches[0].clientY;
+      }
+    };
+    const handleTouchMove = (e: TouchEvent) => {
+      if (showLanding) return;
+      if (e.touches.length === 1) {
+        e.preventDefault();
+        const touchY = e.touches[0].clientY;
+        const delta = touchStartY.current - touchY;
+        scrollAccumulator += delta;
+        if (Math.abs(scrollAccumulator) >= SCROLL_THRESHOLD) {
+          if (Date.now() - lastSwitchTime.current < 300) return;
+          lastSwitchTime.current = Date.now();
+          const direction = scrollAccumulator > 0 ? 'down' : 'up';
+          if (direction === 'down') {
+            if (!isTextMode) {
+              setIsTextMode(true);
+              setIsChatMode(false);
+              setInputValue('');
+              setCurrentMessages([]);
+              setDebugInfo('Transitioning to text mode...');
+            }
+          } else {
+            if (isTextMode) {
+              setIsSaving(true);
+              saveCurrentConversation();
+              setIsTextMode(false);
+              setIsChatMode(false);
+              setInputValue('');
+              setCurrentMessages([]);
+              setDebugInfo('Voice mode active');
+              setIsSaving(false);
+            } else {
+              setShowLanding(true);
+            }
+          }
+          scrollAccumulator = 0; // Reset accumulator after mode switch
+          touchStartY.current = touchY;
+        }
+      }
+    };
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('touchstart', handleTouchStart, { passive: false });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [showLanding, isTextMode, saveCurrentConversation]);
   // Save conversation before page unload
   useEffect(() => {
     const handleBeforeUnload = () => {
       saveCurrentConversation();
     };
-
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [saveCurrentConversation]);
-
   const handleTransitionComplete = () => {
     setDebugInfo('Text mode active');
     console.log('Transition to text mode completed');
   };
-
-  const handleSend = () => {
-    if (inputValue.trim()) {
-      const newMessages = [...currentMessages, { role: 'user' as const, content: inputValue }];
-      setCurrentMessages(newMessages);
-      setInputValue('');
-      if (!isChatMode) {
-        setIsChatMode(true);
-      }
-      // Simulate AI response (optional, can be removed if not needed)
-      setTimeout(() => {
-        setCurrentMessages(prev => [...prev, { role: 'assistant' as const, content: 'This is a simulated response.' }]);
-      }, 1000);
-    }
-  };
-
   // Voice mode handlers
   const handleAudioReady = (audioBlob: Blob) => {
     console.log('Audio ready for processing:', audioBlob.size, 'bytes');
     setDebugInfo(`Audio captured: ${(audioBlob.size / 1024).toFixed(1)}KB`);
-    
+   
     // Here you would typically send the audio to your AI service
     // For now, just update the debug info
     setTimeout(() => {
       setDebugInfo('Voice mode active - ready for next recording');
     }, 2000);
   };
-
   // Voice debug update function - memoized to prevent infinite loops
   const updateVoiceDebug = useCallback((debugData: {
     state: string;
@@ -324,46 +349,43 @@ function App() {
         ...debugData,
         error: debugData.error ?? null
       };
-      
+     
       if (JSON.stringify(prev) !== JSON.stringify(newData)) {
         return newData;
       }
       return prev;
     });
   }, []);
-
   // Set the global callback for VoiceMode to use
   useEffect(() => {
     window.voiceDebugCallback = updateVoiceDebug;
-    
+   
     // Set up global console commands for debug panel
     (window as any).showDebug = () => {
       setShowDebugPanel(true);
       console.log('Debug panel shown');
     };
-    
+   
     (window as any).hideDebug = () => {
       setShowDebugPanel(false);
       console.log('Debug panel hidden');
     };
-    
+   
     // Log available commands
     console.log('Debug panel commands available:');
     console.log('- showDebug() - Show the debug panel');
     console.log('- hideDebug() - Hide the debug panel');
-    
+   
     return () => {
       delete window.voiceDebugCallback;
       delete (window as any).showDebug;
       delete (window as any).hideDebug;
     };
   }, [updateVoiceDebug]);
-
   const viewRawData = () => {
     console.log(JSON.stringify(conversations, null, 2));
     setShowDataModal(true);
   };
-
   // Get storage usage info
   const getStorageInfo = () => {
     try {
@@ -375,53 +397,50 @@ function App() {
       return { conversations: 0, sizeKB: '0' };
     }
   };
-
   const storageInfo = getStorageInfo();
-
   // Show landing page first
   if (showLanding) {
     return <LandingHello onComplete={handleLandingComplete} />;
   }
-
   return (
     <div className="app">
-      <Transition 
-        isTextMode={isTextMode}
-        isChatMode={isChatMode}
-        onTransitionComplete={handleTransitionComplete}
-        inputValue={inputValue}
-        setInputValue={setInputValue}
-        messages={currentMessages}
-        onSend={handleSend}
-        onAudioReady={handleAudioReady}
-        sessionId={sessionId}
-        conversations={conversations}
-        loadConversation={loadConversation}
-        isShowHistory={isShowHistory}
-        setIsShowHistory={setIsShowHistory}
-        deleteConversation={deleteConversation}
-        clearAllConversations={clearAllConversations}
-      />
-      
+      <Transition
+  isTextMode={isTextMode}
+  isChatMode={isChatMode}
+  onTransitionComplete={handleTransitionComplete}
+  inputValue={inputValue}
+  setInputValue={setInputValue}
+  messages={currentMessages}
+  // onSend={handleSend} // Remove this line
+  onAudioReady={handleAudioReady}
+  sessionId={sessionId}
+  conversations={conversations}
+  loadConversation={loadConversation}
+  isShowHistory={isShowHistory}
+  setIsShowHistory={setIsShowHistory}
+  deleteConversation={deleteConversation}
+  clearAllConversations={clearAllConversations}
+  addMessage={addMessage}
+/>
+     
       {/* Enhanced debug controls - only show if showDebugPanel is true */}
       {showDebugPanel && (
         <div className="fixed top-5 right-5 z-[1000] bg-black/80 text-white p-3 rounded-lg text-xs font-mono max-w-[350px]">
           {/* Close button */}
-          <div 
+          <div
             onClick={() => setShowDebugPanel(false)}
             className="absolute top-2 right-2 text-white cursor-pointer text-sm"
             title="Close debug panel (use showDebug() in console to reopen)"
           >
             ×
           </div>
-          
+         
           <div className="mb-2 text-yellow-300 font-semibold">Voice Mode Debug Panel</div>
-          <div>Press SPACE or T to toggle modes</div>
           <div>Status: {debugInfo}</div>
           <div>Mode: {isTextMode ? 'Text' : 'Voice'}</div>
           <div>Session ID: {sessionId}</div>
           <div>Conversations: {storageInfo.conversations} ({storageInfo.sizeKB} KB)</div>
-          
+         
           {/* Voice debug info - only show in voice mode */}
           {!isTextMode && (
             <div className="mt-2 pt-2 border-t border-white/20">
@@ -432,7 +451,7 @@ function App() {
               {voiceDebugInfo.error && <div style={{color: 'red'}}>Error: {voiceDebugInfo.error}</div>}
             </div>
           )}
-          
+         
           {!isTextMode && (
             <div className="mt-2 text-[11px] opacity-80 border-t border-white/20 pt-2">
               <div className="text-blue-300 font-semibold mb-1">Voice Controls:</div>
@@ -441,22 +460,22 @@ function App() {
               <div>• Audio auto-downloads </div>
             </div>
           )}
-          
+         
           <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-white/20">
-            <button 
+            <button
               onClick={viewRawData}
               className="px-2 py-1 bg-accent text-white border-none rounded cursor-pointer text-xs"
             >
               View Data
             </button>
-            <button 
+            <button
               onClick={exportConversationsAsJSON}
               className="px-2 py-1 bg-green-600 text-white border-none rounded cursor-pointer text-xs"
               title="Export conversations as JSON file"
             >
               Export JSON
             </button>
-            <button 
+            <button
               onClick={clearAllConversations}
               className="px-2 py-1 bg-red-600 text-white border-none rounded cursor-pointer text-xs"
               title="Clear all stored conversations"
@@ -464,16 +483,15 @@ function App() {
               Clear All
             </button>
           </div>
-          
+         
           <div className="mt-2 pt-2 border-t border-white/20 text-[10px] opacity-70">
             Console: showDebug() | hideDebug()
           </div>
         </div>
       )}
-
       {/* Raw Data Modal */}
       {showDataModal && (
-        <div 
+        <div
           style={{
             position: 'fixed',
             top: 0,
@@ -488,7 +506,7 @@ function App() {
           }}
           onClick={() => setShowDataModal(false)}
         >
-          <div 
+          <div
             style={{
               backgroundColor: 'white',
               padding: '20px',
@@ -500,7 +518,7 @@ function App() {
             }}
             onClick={e => e.stopPropagation()}
           >
-            <button 
+            <button
               onClick={() => setShowDataModal(false)}
               style={{
                 position: 'absolute',
@@ -517,8 +535,8 @@ function App() {
             <h6 style={{ marginBottom: '10px', color: 'black' }}>
               Chat History Data ({storageInfo.conversations} conversations, {storageInfo.sizeKB} KB)
             </h6>
-            <pre style={{ 
-              whiteSpace: 'pre-wrap', 
+            <pre style={{
+              whiteSpace: 'pre-wrap',
               wordBreak: 'normal',
               textAlign: 'left',
               overflowWrap: 'break-word',
@@ -533,5 +551,4 @@ function App() {
     </div>
   );
 }
-
 export default App;
