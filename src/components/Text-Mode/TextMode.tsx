@@ -31,9 +31,64 @@ interface TextModeProps {
   setIsShowHistory: (show: boolean) => void;
   sessionId: string;
   addMessage: (message: { role: 'user' | 'assistant'; content: string }) => void;
-  onBackToVoiceMode?: () => void; // Add this prop
+  onBackToVoiceMode: () => void;
 }
 
+// Back to Voice Mode Button Component
+interface BackToVoiceModeButtonProps {
+  onClick: () => void;
+}
+
+const BackToVoiceModeButton: React.FC<BackToVoiceModeButtonProps> = ({ onClick }) => {
+  const theme = useTheme();
+
+  return (
+    <div style={{ position: 'fixed', top: '20px', left: '80px', zIndex: 30 }}>
+      <button 
+        onClick={onClick}
+        style={{
+          width: '50px',
+          height: '50px',
+          borderRadius: '50%',
+          background: theme.colors.accent,
+          border: 'none',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.05)';
+          e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+        }}
+        title="Back to Voice Mode"
+      >
+        {/* Microphone Icon SVG */}
+        <svg 
+          width="24" 
+          height="24" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke="white" 
+          strokeWidth="2" 
+          strokeLinecap="round" 
+          strokeLinejoin="round"
+        >
+          <path d="M12 1a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4z"/>
+          <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+      </button>
+    </div>
+  );
+};
 
 const TextMode: React.FC<TextModeProps> = ({ 
   transitionStage, 
@@ -43,7 +98,6 @@ const TextMode: React.FC<TextModeProps> = ({
   messages,
   inputValue,
   setInputValue,
-  // onSend, // Remove this unused parameter
   conversations,
   loadConversation,
   deleteConversation,
@@ -51,7 +105,8 @@ const TextMode: React.FC<TextModeProps> = ({
   isShowHistory,
   setIsShowHistory,
   sessionId,
-  addMessage
+  addMessage,
+  onBackToVoiceMode
 }) => {
   const theme = useTheme();
   const {
@@ -118,23 +173,28 @@ const TextMode: React.FC<TextModeProps> = ({
   const isExpanding = transitionStage === 'expanding';
 
   if (isChatMode) {
-  return (
-    <ChatArea
-      messages={messages}
-      inputValue={inputValue}
-      setInputValue={setInputValue}
-      onSend={handleEnhancedSend}
-      imageUrl={imageUrl}
-      conversations={conversations}
-      loadConversation={loadConversation}
-      deleteConversation={deleteConversation}
-      clearAllConversations={clearAllConversations}
-      isShowHistory={isShowHistory}
-      setIsShowHistory={setIsShowHistory}
-      isLoading={isLoading} // Add this line
-    />
-  );
-}
+    return (
+      <>
+        {/* Add BackToVoiceModeButton for chat mode */}
+        <BackToVoiceModeButton onClick={onBackToVoiceMode} />
+        
+        <ChatArea
+          messages={messages}
+          inputValue={inputValue}
+          setInputValue={setInputValue}
+          onSend={handleEnhancedSend}
+          imageUrl={imageUrl}
+          conversations={conversations}
+          loadConversation={loadConversation}
+          deleteConversation={deleteConversation}
+          clearAllConversations={clearAllConversations}
+          isShowHistory={isShowHistory}
+          setIsShowHistory={setIsShowHistory}
+          isLoading={isLoading}
+        />
+      </>
+    );
+  }
 
   const sphereStyle: React.CSSProperties = {
     borderRadius: '50%',
@@ -177,6 +237,11 @@ const TextMode: React.FC<TextModeProps> = ({
         onDeleteConversation={handleDeleteConversation}
         onClearAll={handleClearAll}
       />
+
+      {/* Add BackToVoiceModeButton for text mode */}
+      {transitionStage === 'text' && (
+        <BackToVoiceModeButton onClick={onBackToVoiceMode} />
+      )}
 
       {/* Error Display */}
       {error && (
@@ -276,13 +341,13 @@ const TextMode: React.FC<TextModeProps> = ({
             onHeightChange={wrappedHandleHeightChange}
             value={inputValue}
             onChange={setInputValue}
-            onSend={handleEnhancedSend} // Use enhanced send handler
+            onSend={handleEnhancedSend}
           />
         </motion.div>
 
         {/* Shrinking and moving sphere */}
         <motion.div
-          onClick={!isLoading ? handleEnhancedSend : undefined} // Disable click when loading
+          onClick={!isLoading ? handleEnhancedSend : undefined}
           initial={{ 
             width: transitionStartSize,
             height: transitionStartSize,
@@ -297,7 +362,7 @@ const TextMode: React.FC<TextModeProps> = ({
             y: [0, 0, transitionStage === 'text' && textareaHeight > 24 
               ? Math.max(0, (containerHeight - dimensions.baseHeight) / 2) 
               : 0],
-            scale: isLoading ? 0.95 : 1, // Slightly smaller when loading
+            scale: isLoading ? 0.95 : 1,
           }}
           transition={{
             duration: isExpanding ? 1.8 : 

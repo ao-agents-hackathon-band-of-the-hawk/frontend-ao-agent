@@ -27,3 +27,6 @@ package-lock.json
 *codebase.md
 .env
 .gitignore
+Pages
+App.css
+index.css

@@ -270,6 +270,22 @@ function App() {
     setSessionId(generateSessionId()); // New session when leaving landing page
   };
 
+  // Navigation functions
+  const handleBackToVoiceMode = () => {
+    if (isTextMode) {
+      setIsSaving(true);
+      saveCurrentConversation();
+      setIsTextMode(false);
+      setIsChatMode(false);
+      setInputValue('');
+      setCurrentMessages([]);
+      setDebugInfo('Voice mode active');
+      setIsSaving(false);
+      setSessionId(generateSessionId()); // New session for voice mode
+    }
+  };
+
+  // Scroll navigation - only active in voice mode
   useEffect(() => {
     const lastSwitchTime = { current: 0 };
     const touchStartY = { current: 0 };
@@ -279,6 +295,13 @@ function App() {
 
     const handleWheel = (e: WheelEvent) => {
       const target = e.target as Element;
+      
+      // Only allow scroll navigation in voice mode AND when history is not shown
+      if (isTextMode || isChatMode || isShowHistory) {
+        return;
+      }
+      
+      // Skip if in scrollable areas
       if (
         target.closest('.chat-messages') ||
         target.closest('.chat-history-panel') ||
@@ -299,42 +322,33 @@ function App() {
       if (Math.abs(scrollAccumulator) >= SCROLL_THRESHOLD) {
         lastSwitchTime.current = Date.now();
         const direction = scrollAccumulator > 0 ? 'down' : 'up';
-        if (direction === 'down') {
-          if (!isTextMode) {
-            setIsTextMode(true);
-            setIsChatMode(false);
-            setInputValue('');
-            setCurrentMessages([]);
-            setDebugInfo('Transitioning to text mode...');
-            setSessionId(generateSessionId()); // New session for text chat
-          }
-        } else {
-          if (isTextMode) {
-            setIsSaving(true);
-            saveCurrentConversation();
-            setIsTextMode(false);
-            setIsChatMode(false);
-            setInputValue('');
-            setCurrentMessages([]);
-            setDebugInfo('Voice mode active');
-            setIsSaving(false);
-            setSessionId(generateSessionId()); // New session for voice mode
-          } else {
-            setShowLanding(true);
-          }
+        
+        if (direction === 'down' && !isTextMode) {
+          // Voice mode -> Text mode
+          setIsTextMode(true);
+          setIsChatMode(false);
+          setInputValue('');
+          setCurrentMessages([]);
+          setDebugInfo('Transitioning to text mode...');
+          setSessionId(generateSessionId());
+        } else if (direction === 'up' && !isTextMode) {
+          // Voice mode -> Landing page
+          setShowLanding(true);
         }
+        
         scrollAccumulator = 0;
-      }
-    };
-
-    const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        touchStartY.current = e.touches[0].clientY;
       }
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       const target = e.target as Element;
+      
+      // Only allow touch navigation in voice mode AND when history is not shown
+      if (isTextMode || isChatMode || isShowHistory) {
+        return;
+      }
+      
+      // Skip if in scrollable areas
       if (
         target.closest('.chat-messages') ||
         target.closest('.chat-history-panel') ||
@@ -357,32 +371,28 @@ function App() {
         if (Date.now() - lastSwitchTime.current < 300) return;
         lastSwitchTime.current = Date.now();
         const direction = scrollAccumulator > 0 ? 'down' : 'up';
-        if (direction === 'down') {
-          if (!isTextMode) {
-            setIsTextMode(true);
-            setIsChatMode(false);
-            setInputValue('');
-            setCurrentMessages([]);
-            setDebugInfo('Transitioning to text mode...');
-            setSessionId(generateSessionId()); // New session for text chat
-          }
-        } else {
-          if (isTextMode) {
-            setIsSaving(true);
-            saveCurrentConversation();
-            setIsTextMode(false);
-            setIsChatMode(false);
-            setInputValue('');
-            setCurrentMessages([]);
-            setDebugInfo('Voice mode active');
-            setIsSaving(false);
-            setSessionId(generateSessionId()); // New session for voice mode
-          } else {
-            setShowLanding(true);
-          }
+        
+        if (direction === 'down' && !isTextMode) {
+          // Voice mode -> Text mode
+          setIsTextMode(true);
+          setIsChatMode(false);
+          setInputValue('');
+          setCurrentMessages([]);
+          setDebugInfo('Transitioning to text mode...');
+          setSessionId(generateSessionId());
+        } else if (direction === 'up' && !isTextMode) {
+          // Voice mode -> Landing page
+          setShowLanding(true);
         }
+        
         scrollAccumulator = 0;
         touchStartY.current = touchY;
+      }
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        touchStartY.current = e.touches[0].clientY;
       }
     };
 
@@ -395,7 +405,7 @@ function App() {
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchmove', handleTouchMove);
     };
-  }, [showLanding, isTextMode, saveCurrentConversation]);
+  }, [showLanding, isTextMode, isChatMode, isShowHistory, saveCurrentConversation]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -491,6 +501,7 @@ function App() {
         deleteConversation={deleteConversation}
         clearAllConversations={clearAllConversations}
         addMessage={addMessage}
+        onBackToVoiceMode={handleBackToVoiceMode}
       />
       {showDebugPanel && (
         <div className="fixed top-5 right-5 z-[1000] bg-black/80 text-white p-3 rounded-lg text-xs font-mono max-w-[350px]">
@@ -615,4 +626,3 @@ function App() {
 }
 
 export default App;
-

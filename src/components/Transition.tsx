@@ -29,6 +29,7 @@ interface TransitionProps {
   setIsShowHistory: (show: boolean) => void;
   sessionId: string;
   addMessage: (message: { role: 'user' | 'assistant'; content: string }) => void;
+  onBackToVoiceMode: () => void;
 }
 
 // Back to Voice Mode Button Component
@@ -103,7 +104,8 @@ const Transition: React.FC<TransitionProps> = ({
   isShowHistory,
   setIsShowHistory,
   sessionId,
-  addMessage
+  addMessage,
+  onBackToVoiceMode
 }) => {
   const theme = useTheme();
   const [transitionStage, setTransitionStage] = useState<'voice' | 'expanding' | 'text'>('voice');
@@ -269,6 +271,7 @@ const Transition: React.FC<TransitionProps> = ({
             setIsShowHistory={setIsShowHistory}
             sessionId={sessionId}
             addMessage={addMessage}
+            onBackToVoiceMode={onBackToVoiceMode}
           />
         )}
       </AnimatePresence>
