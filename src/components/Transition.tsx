@@ -20,7 +20,6 @@ interface TransitionProps {
   inputValue: string;
   setInputValue: (value: string) => void;
   messages: { role: 'user' | 'assistant'; content: string }[];
-  // onSend: () => void; // Remove this since text mode handles its own send logic
   onAudioReady?: (audioBlob: Blob) => void;
   conversations: Conversation[];
   loadConversation: (id: string) => void;
@@ -32,6 +31,62 @@ interface TransitionProps {
   addMessage: (message: { role: 'user' | 'assistant'; content: string }) => void;
 }
 
+// Back to Voice Mode Button Component
+interface BackToVoiceModeButtonProps {
+  onClick: () => void;
+}
+
+const BackToVoiceModeButton: React.FC<BackToVoiceModeButtonProps> = ({ onClick }) => {
+  const theme = useTheme();
+
+  return (
+    <div style={{ position: 'fixed', top: '20px', left: '80px', zIndex: 30 }}>
+      <button 
+        onClick={onClick}
+        style={{
+          width: '50px',
+          height: '50px',
+          borderRadius: '50%',
+          background: theme.colors.accent,
+          border: 'none',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.05)';
+          e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+        }}
+        title="Back to Voice Mode"
+      >
+        {/* Microphone Icon SVG */}
+        <svg 
+          width="24" 
+          height="24" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke="white" 
+          strokeWidth="2" 
+          strokeLinecap="round" 
+          strokeLinejoin="round"
+        >
+          <path d="M12 1a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4z"/>
+          <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+      </button>
+    </div>
+  );
+};
+
 const Transition: React.FC<TransitionProps> = ({ 
   isTextMode, 
   isChatMode,
@@ -40,7 +95,6 @@ const Transition: React.FC<TransitionProps> = ({
   inputValue,
   setInputValue,
   messages,
-  // onSend, // Remove this unused parameter
   onAudioReady,
   conversations,
   loadConversation,
@@ -155,24 +209,12 @@ const Transition: React.FC<TransitionProps> = ({
     return (
       <div style={containerStyle}>
         {/* Back to Voice Mode Button */}
-        <div style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 30 }}>
-          <button 
-            onClick={() => {
-              setVoiceMessages([]);
-              setIsShowHistory(false);
-            }}
-            style={{
-              padding: '8px 16px',
-              background: theme.colors.accent,
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
-            Back to Voice Mode
-          </button>
-        </div>
+        <BackToVoiceModeButton 
+          onClick={() => {
+            setVoiceMessages([]);
+            setIsShowHistory(false);
+          }}
+        />
         
         <ChatArea
           messages={voiceMessages}
@@ -219,7 +261,6 @@ const Transition: React.FC<TransitionProps> = ({
             messages={messages}
             inputValue={inputValue}
             setInputValue={setInputValue}
-            // Remove onSend prop since TextMode doesn't use it anymore
             conversations={conversations}
             loadConversation={loadConversation}
             deleteConversation={deleteConversation}

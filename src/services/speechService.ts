@@ -6,7 +6,7 @@ export interface SpeechResponse {
 }
 
 export class SpeechService {
-  private static readonly SERVER_HOST = import.meta.env.VITE_API_SERVER_HOST || '216.81.248.2:8734';
+  private static readonly SERVER_HOST = import.meta.env.VITE_API_SERVER_HOST;
   private static sessionId: string = '';
   private static currentAudio: HTMLAudioElement | null = null;
   private static isPlayingTTS: boolean = false;
@@ -68,6 +68,8 @@ export class SpeechService {
   private static cleanMarkdownText(text: string): string {
     return text
       .trim()
+      // Remove thinking tokens
+      .replace(/<think>[\s\S]*?<\/think>/g, '')
       // Remove markdown formatting
       .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold **text**
       .replace(/\*(.*?)\*/g, '$1') // Remove italic *text*

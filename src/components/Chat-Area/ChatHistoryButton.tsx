@@ -1,4 +1,4 @@
-// src/components/ChatHistoryButton.tsx
+// src/components/Chat-Area/ChatHistoryButton.tsx
 import React from 'react';
 import { useTheme } from '../../hooks/useTheme';
 import ChatHistoryPanel from './ChatHistoryPanel';
@@ -33,16 +33,44 @@ const ChatHistoryButton: React.FC<ChatHistoryButtonProps> = ({
       <button 
         onClick={onToggleHistory}
         style={{
-          padding: '8px 16px',
+          width: '50px',
+          height: '50px',
+          borderRadius: '50%',
           background: theme.colors.accent,
-          color: 'white',
           border: 'none',
-          borderRadius: '4px',
           cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
         }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.05)';
+          e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+        }}
+        title={`Chat History (${conversations.length})`}
       >
-        Chat History ({conversations.length})
+        {/* History Icon SVG */}
+        <svg 
+          width="24" 
+          height="24" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke="white" 
+          strokeWidth="2" 
+          strokeLinecap="round" 
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12,6 12,12 16,14"/>
+        </svg>
       </button>
+      
       <ChatHistoryPanel
         isVisible={isShowHistory}
         conversations={conversations}

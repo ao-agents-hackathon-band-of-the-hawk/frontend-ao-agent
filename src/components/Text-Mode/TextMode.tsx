@@ -23,16 +23,17 @@ interface TextModeProps {
   messages: { role: 'user' | 'assistant'; content: string }[];
   inputValue: string;
   setInputValue: (value: string) => void;
-  // onSend: () => void; // Remove this - we're using handleEnhancedSend instead
   conversations: Conversation[];
   loadConversation: (id: string) => void;
   deleteConversation: (id: string) => void;
   clearAllConversations: () => void;
   isShowHistory: boolean;
   setIsShowHistory: (show: boolean) => void;
-  sessionId: string; // Add sessionId prop
-  addMessage: (message: { role: 'user' | 'assistant'; content: string }) => void; // Add function to add messages
+  sessionId: string;
+  addMessage: (message: { role: 'user' | 'assistant'; content: string }) => void;
+  onBackToVoiceMode?: () => void; // Add this prop
 }
+
 
 const TextMode: React.FC<TextModeProps> = ({ 
   transitionStage, 
