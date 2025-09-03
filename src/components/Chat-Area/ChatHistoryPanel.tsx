@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import FineTune from './FineTune'; // Adjust path to FineTune.tsx as needed
 
 // Interfaces remain the same
 interface Conversation {
@@ -10,7 +11,7 @@ interface Conversation {
 interface ChatHistoryPanelProps {
   isVisible: boolean;
   conversations: Conversation[];
-  onLoadConversation: (id:string) => void;
+  onLoadConversation: (id: string) => void;
   onDeleteConversation: (id: string) => void;
   onClearAll: () => void;
 }
@@ -125,14 +126,38 @@ const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
   onClearAll,
 }) => {
   const [isClearHovered, setClearHovered] = useState(false);
+  const [isFineTuneHovered, setFineTuneHovered] = useState(false);
+  const [showFineTune, setShowFineTune] = useState(false); // State to toggle FineTune component
 
   if (!isVisible) return null;
 
+  // Handle Fine Tune button click
+  const handleFineTune = () => {
+    setShowFineTune(true); // Show FineTune component
+  };
+
+  // Handle Back to Chat from FineTune
+  const handleBackToChat = () => {
+    setShowFineTune(false); // Show ChatHistoryPanel again
+  };
+
+  // Render FineTune if showFineTune is true, otherwise render ChatHistoryPanel
+  if (showFineTune) {
+    return <FineTune onBackToChat={handleBackToChat} />;
+  }
+
   const clearButtonStyle: React.CSSProperties = {
       ...styles.clearButton,
-      backgroundColor: isClearHovered ? '#ef4444' : '#f87171',
+      backgroundColor: isClearHovered ? '#aeaeaeff' : '#dadadaff',
       transform: isClearHovered ? 'translateY(-1px)' : 'none',
-      boxShadow: isClearHovered ? '0 4px 12px rgba(239, 68, 68, 0.3)' : '0 2px 4px rgba(248, 113, 113, 0.2)',
+      boxShadow: isClearHovered ? '0 4px 12px rgba(246, 246, 246, 0.3)' : '0 2px 4px rgba(194, 194, 194, 0.2)',
+  };
+
+  const fineTuneButtonStyle: React.CSSProperties = {
+      ...styles.fineTuneButton,
+      backgroundColor: isFineTuneHovered ? '#b6c37f' : '#c3cb9c',
+      transform: isFineTuneHovered ? 'translateY(-1px)' : 'none',
+      boxShadow: isFineTuneHovered ? '0 4px 12px rgba(195, 203, 156, 0.4)' : '0 2px 4px rgba(195, 203, 156, 0.2)',
   };
 
   return (
@@ -156,7 +181,6 @@ const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
       <div style={styles.listContainer}>
         {conversations.length === 0 ? (
           <div style={styles.emptyMessage}>
-            <div style={styles.emptyIcon}>💬</div>
             <div>No conversations yet</div>
             <div style={styles.emptySubtext}>Your chat history will appear here</div>
           </div>
@@ -173,6 +197,19 @@ const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
           </div>
         )}
       </div>
+      
+      {/* Fine Tune Button - always shown */}
+      <div style={styles.fineTuneContainer}>
+        <button
+          onClick={handleFineTune}
+          style={fineTuneButtonStyle}
+          onMouseEnter={() => setFineTuneHovered(true)}
+          onMouseLeave={() => setFineTuneHovered(false)}
+          title="Fine-tune model with conversation history"
+        >
+          <span>Fine Tune</span>
+        </button>
+      </div>
     </div>
   );
 };
@@ -182,7 +219,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   panel: {
     position: 'absolute',
     top: '60px',
-    right: '40', // Changed from left: '0' to right: '0' to position on the right
+    right: '40',
     backgroundColor: '#ffffff',
     padding: '24px',
     borderRadius: '16px',
@@ -193,7 +230,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     flexDirection: 'column',
     zIndex: 30,
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif",
+    fontFamily: "'Open Sans', sans-serif",
     boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
     border: '1px solid #e5e7eb',
   },
@@ -212,8 +249,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#1f2937',
     fontSize: '1.375rem',
     fontWeight: 700,
-    textAlign: 'right', // Changed to align title to the right
-    marginTop: '4px', // Added margin to bring it down slightly
+    textAlign: 'right',
+    marginTop: '4px',
   },
   clearButton: {
     padding: '8px 16px',
@@ -242,11 +279,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: '8px',
   },
-  emptyIcon: {
-    fontSize: '2rem',
-    marginBottom: '8px',
-    opacity: 0.6,
-  },
   emptySubtext: {
     fontSize: '0.75rem',
     color: '#9ca3af',
@@ -265,7 +297,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
     lineHeight: 1.4,
-    textAlign: 'left', // Explicitly align text to the left
+    textAlign: 'left',
   },
   convoMeta: {
     fontSize: '0.75rem',
@@ -274,6 +306,26 @@ const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: 'space-between',
     alignItems: 'center',
     fontWeight: 500,
+  },
+  fineTuneContainer: {
+    borderTop: '1px solid #e5e7eb',
+    paddingTop: '16px',
+    marginTop: '16px',
+  },
+  fineTuneButton: {
+    width: '100%',
+    padding: '12px 16px',
+    color: '#2c2c2c',
+    border: 'none',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: 600,
+    transition: 'all 0.2s ease-in-out',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
   },
 };
 

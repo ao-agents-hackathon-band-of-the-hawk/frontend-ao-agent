@@ -1,4 +1,4 @@
-// src/hooks/useTextLogic.ts
+// src/hooks/useTextLogic.tsx
 import { useState, useCallback } from 'react';
 import { TextService } from '../services/textService';
 
