@@ -1,4 +1,4 @@
-// src/components/ChatArea.tsx
+// src/components/Chat-Area/ChatArea.tsx
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../hooks/useTheme';
 import { useChatHistory } from '../../hooks/useChatHistory';
@@ -26,6 +26,7 @@ interface ChatAreaProps {
   clearAllConversations: () => void;
   isShowHistory: boolean;
   setIsShowHistory: (show: boolean) => void;
+  isLoading?: boolean; // Add this prop to indicate when waiting for response
 }
 
 const ChatArea: React.FC<ChatAreaProps> = ({
@@ -39,11 +40,31 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   deleteConversation,
   clearAllConversations,
   isShowHistory,
-  setIsShowHistory
+  setIsShowHistory,
+  isLoading = false
 }) => {
   const theme = useTheme();
   const [textareaHeight, setTextareaHeight] = useState(24);
   const [chatMaxHeight, setChatMaxHeight] = useState(600);
+  const [thinkingDots, setThinkingDots] = useState('');
+
+  // Thinking animation
+  useEffect(() => {
+    if (isLoading) {
+      const interval = setInterval(() => {
+        setThinkingDots(prev => {
+          if (prev === '...') return '.';
+          if (prev === '..') return '...';
+          if (prev === '.') return '..';
+          return '.';
+        });
+      }, 500);
+      
+      return () => clearInterval(interval);
+    } else {
+      setThinkingDots('');
+    }
+  }, [isLoading]);
 
   // CUSTOMIZABLE SPACING, LAYOUT AND STYLING PARAMETERS
   const CHAT_CONFIG = {
@@ -138,6 +159,18 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     setTextareaHeight(height);
   };
 
+  // Create messages with thinking indicator
+  const displayMessages = React.useMemo(() => {
+    const msgs = [...messages];
+    if (isLoading) {
+      msgs.push({
+        role: 'assistant' as const,
+        content: `Thinking${thinkingDots}`
+      });
+    }
+    return msgs;
+  }, [messages, isLoading, thinkingDots]);
+
   return (
     <div
       style={{
@@ -164,7 +197,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
       {/* Chat Messages */}
       <ChatMessages
-        messages={messages}
+        messages={displayMessages}
         chatMaxHeight={chatMaxHeight}
         containerPadding={CHAT_CONFIG.containerPadding}
         messageGap={CHAT_CONFIG.messageGap}

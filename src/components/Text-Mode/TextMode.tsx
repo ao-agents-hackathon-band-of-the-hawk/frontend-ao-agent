@@ -117,22 +117,23 @@ const TextMode: React.FC<TextModeProps> = ({
   const isExpanding = transitionStage === 'expanding';
 
   if (isChatMode) {
-    return (
-      <ChatArea
-        messages={messages}
-        inputValue={inputValue}
-        setInputValue={setInputValue}
-        onSend={handleEnhancedSend} // Use enhanced send handler
-        imageUrl={imageUrl}
-        conversations={conversations}
-        loadConversation={loadConversation}
-        deleteConversation={deleteConversation}
-        clearAllConversations={clearAllConversations}
-        isShowHistory={isShowHistory}
-        setIsShowHistory={setIsShowHistory}
-      />
-    );
-  }
+  return (
+    <ChatArea
+      messages={messages}
+      inputValue={inputValue}
+      setInputValue={setInputValue}
+      onSend={handleEnhancedSend}
+      imageUrl={imageUrl}
+      conversations={conversations}
+      loadConversation={loadConversation}
+      deleteConversation={deleteConversation}
+      clearAllConversations={clearAllConversations}
+      isShowHistory={isShowHistory}
+      setIsShowHistory={setIsShowHistory}
+      isLoading={isLoading} // Add this line
+    />
+  );
+}
 
   const sphereStyle: React.CSSProperties = {
     borderRadius: '50%',

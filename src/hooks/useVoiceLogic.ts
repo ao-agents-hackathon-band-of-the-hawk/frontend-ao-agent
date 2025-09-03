@@ -180,6 +180,57 @@ export const useVoiceLogic = ({ onAudioReady, sessionId, onConversationUpdate }:
     return new Blob([buffer], { type: 'audio/wav' });
   }, [sampleRate]);
   
+  // VAD configuration
+  const vad = useMicVAD({
+    startOnLoad: false,
+    onSpeechStart: () => {
+      console.log('Speech started');
+      if (voiceState === 'starting') {
+        setDebugInfo('Listening... (speak now)');
+        setIsRecording(true);
+        setVoiceState('listening');
+      }
+      
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
+        silenceTimeoutRef.current = null;
+      }
+    },
+    onSpeechEnd: (audio: Float32Array) => {
+      console.log('Speech chunk received:', audio.length, 'samples');
+      
+      setAudioChunks(prev => {
+        const newChunks = [...prev, audio];
+        console.log('Total chunks now:', newChunks.length);
+        return newChunks;
+      });
+      
+      chunksToProcessRef.current = [...chunksToProcessRef.current, audio];
+      
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
+      }
+      
+      silenceTimeoutRef.current = setTimeout(() => {
+        console.log('Silence detected - processing recording');
+        
+        chunksToProcessRef.current = [...audioChunks, audio];
+        
+        vad.pause();
+        processAudioRecording();
+      }, 3000);
+    },
+    onVADMisfire: () => {
+      console.log('VAD misfire - speech segment too short');
+      setDebugInfo('Speech too short - keep talking...');
+    },
+    positiveSpeechThreshold: 0.6,
+    negativeSpeechThreshold: 0.3,
+    minSpeechFrames: 3,
+    preSpeechPadFrames: 4,
+    redemptionFrames: 10,
+  });
+
   // Process completed audio recording
   const processAudioRecording = useCallback(async () => {
     if (isProcessingRef.current) {
@@ -233,71 +284,32 @@ export const useVoiceLogic = ({ onAudioReady, sessionId, onConversationUpdate }:
         saveVoiceInteraction(response.transcription, response.result);
       }
       
-      // Read out the AI response (after saving)
+      // Read out the AI response with interruption callback (after saving)
       if (response.result) {
-        await SpeechService.speakText(response.result);
+        await SpeechService.speakText(response.result, () => {
+          // Interruption callback - start new recording immediately
+          console.log('TTS was interrupted, starting new recording session...');
+          setDebugInfo('Interrupted - starting new recording...');
+          setAudioChunks([]);
+          chunksToProcessRef.current = [];
+          setVoiceState('listening');
+          isProcessingRef.current = false;
+          vad.start(); // Start VAD for new recording
+        });
       }
       
     } catch (error) {
       console.error('Speech API error:', error);
     } finally {
-      setVoiceState('idle');
-      setDebugInfo('Voice mode ready - Click to start listening');
+      // Only set to idle if we're not in an interrupted state (listening)
+      if (voiceStateRef.current !== 'listening') {
+        setVoiceState('idle');
+        setDebugInfo('Voice mode ready - Click to start listening');
+      }
       isProcessingRef.current = false;
     }
     
-  }, [createWavBlob, onAudioReady, saveVoiceInteraction]);
-  
-  // VAD configuration
-  const vad = useMicVAD({
-    startOnLoad: false,
-    onSpeechStart: () => {
-      console.log('Speech started');
-      if (voiceState === 'starting') {
-        setDebugInfo('Listening... (speak now)');
-        setIsRecording(true);
-        setVoiceState('listening');
-      }
-      
-      if (silenceTimeoutRef.current) {
-        clearTimeout(silenceTimeoutRef.current);
-        silenceTimeoutRef.current = null;
-      }
-    },
-    onSpeechEnd: (audio: Float32Array) => {
-      console.log('Speech chunk received:', audio.length, 'samples');
-      
-      setAudioChunks(prev => {
-        const newChunks = [...prev, audio];
-        console.log('Total chunks now:', newChunks.length);
-        return newChunks;
-      });
-      
-      chunksToProcessRef.current = [...chunksToProcessRef.current, audio];
-      
-      if (silenceTimeoutRef.current) {
-        clearTimeout(silenceTimeoutRef.current);
-      }
-      
-      silenceTimeoutRef.current = setTimeout(() => {
-        console.log('Silence detected - processing recording');
-        
-        chunksToProcessRef.current = [...audioChunks, audio];
-        
-        vad.pause();
-        processAudioRecording();
-      }, 3000);
-    },
-    onVADMisfire: () => {
-      console.log('VAD misfire - speech segment too short');
-      setDebugInfo('Speech too short - keep talking...');
-    },
-    positiveSpeechThreshold: 0.6,
-    negativeSpeechThreshold: 0.3,
-    minSpeechFrames: 3,
-    preSpeechPadFrames: 4,
-    redemptionFrames: 10,
-  });
+  }, [createWavBlob, onAudioReady, saveVoiceInteraction, vad]);
   
   // Handle click to start/stop
   const handleSphereClick = useCallback(() => {

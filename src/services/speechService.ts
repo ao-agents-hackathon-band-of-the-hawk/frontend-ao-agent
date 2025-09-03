@@ -8,6 +8,9 @@ export interface SpeechResponse {
 export class SpeechService {
   private static readonly SERVER_HOST = import.meta.env.VITE_API_SERVER_HOST || '216.81.248.2:8734';
   private static sessionId: string = '';
+  private static currentAudio: HTMLAudioElement | null = null;
+  private static isPlayingTTS: boolean = false;
+  private static interruptedText: string = '';
 
   // Set session ID (to be called from App.tsx)
   static setSessionId(sessionId: string) {
@@ -15,7 +18,8 @@ export class SpeechService {
   }
 
   private static get SPEECH_TO_TEXT_API_URL() {
-    return `http://${this.SERVER_HOST}/~speech-to-text@1.0/transcribe/infer~wasi-nn@1.0?model-id=gemma&session_id=${this.sessionId}`;
+    const baseUrl = `http://${this.SERVER_HOST}/~speech-to-text@1.0/transcribe/infer~wasi-nn@1.0?model-id=gemma&session_id=${this.sessionId}`;
+    return this.interruptedText ? `${baseUrl}&prompt=${encodeURIComponent(this.interruptedText)}` : baseUrl;
   }
 
   private static get TEXT_TO_SPEECH_API_URL() {
@@ -41,12 +45,13 @@ export class SpeechService {
 
       const data = await response.json();
       
+      // Clear interrupted text after use
+      this.interruptedText = '';
+      
       // Clean both transcription and result text
       const cleanTranscription = this.cleanMarkdownText(data.transcription || 'No transcription available');
       const cleanResult = this.cleanMarkdownText(data.result || 'No AI response available');
       
-      // Assuming the API returns { transcription: string, result: string }
-      // Adjust this based on actual API response structure
       return {
         transcription: cleanTranscription,
         result: cleanResult
@@ -84,9 +89,108 @@ export class SpeechService {
   }
 
   /**
-   * Convert text to speech using the TTS API and play the audio
+   * Calculate character position based on audio playback time
    */
-  static async speakText(text: string): Promise<void> {
+  private static calculateCharacterPosition(currentTime: number, totalTime: number, text: string): number {
+    const progress = currentTime / totalTime;
+    const charPosition = Math.floor(progress * text.length);
+    return Math.min(charPosition, text.length - 1);
+  }
+
+  /**
+   * Find the last whitespace character before the given position
+   */
+  private static findLastWhitespace(text: string, position: number): number {
+    for (let i = position; i >= 0; i--) {
+      if (text[i] === ' ' || text[i] === '\n' || text[i] === '\t') {
+        return i;
+      }
+    }
+    return position;
+  }
+
+  /**
+   * Create interrupted text with marker
+   */
+  private static createInterruptedText(text: string, interruptPosition: number): string {
+    const whitespacePos = this.findLastWhitespace(text, interruptPosition);
+    const beforeInterrupt = text.substring(0, whitespacePos).trim();
+    return `${beforeInterrupt} {The AI response was interrupted by the question that follows}`;
+  }
+
+  /**
+   * Check if user is speaking using a simple VAD approach
+   */
+  private static async startVADMonitoring(): Promise<{ stop: () => void; onSpeechDetected: (callback: () => void) => void }> {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      const microphone = audioContext.createMediaStreamSource(stream);
+      
+      analyser.fftSize = 256;
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      
+      microphone.connect(analyser);
+      
+      let speechCallback: (() => void) | null = null;
+      let isMonitoring = true;
+      let speechStartTime = 0;
+      let isSpeechDetected = false;
+      
+      const checkAudioLevel = () => {
+        if (!isMonitoring) return;
+        
+        analyser.getByteFrequencyData(dataArray);
+        const average = dataArray.reduce((a, b) => a + b) / bufferLength;
+        
+        const SPEECH_THRESHOLD = 30; // Adjust based on testing
+        
+        if (average > SPEECH_THRESHOLD) {
+          if (!isSpeechDetected) {
+            isSpeechDetected = true;
+            speechStartTime = Date.now();
+          }
+          
+          // Check if speech has been continuous for 2 seconds
+          if (Date.now() - speechStartTime > 2000) {
+            speechCallback?.();
+            return; // Stop monitoring after callback
+          }
+        } else {
+          isSpeechDetected = false;
+        }
+        
+        requestAnimationFrame(checkAudioLevel);
+      };
+      
+      checkAudioLevel();
+      
+      return {
+        stop: () => {
+          isMonitoring = false;
+          stream.getTracks().forEach(track => track.stop());
+          audioContext.close();
+        },
+        onSpeechDetected: (callback: () => void) => {
+          speechCallback = callback;
+        }
+      };
+    } catch (error) {
+      console.error('Failed to start VAD monitoring:', error);
+      // Return dummy implementation if microphone access fails
+      return {
+        stop: () => {},
+        onSpeechDetected: () => {}
+      };
+    }
+  }
+
+  /**
+   * Convert text to speech using the TTS API and play the audio with interruption support
+   */
+  static async speakText(text: string, onInterruptionCallback?: () => void): Promise<void> {
     return new Promise(async (resolve, reject) => {
       try {
         // Clean the text using the same method
@@ -134,28 +238,76 @@ export class SpeechService {
         document.body.removeChild(downloadLink);
         URL.revokeObjectURL(downloadUrl);
         
-        // Create an audio element and play it
+        // Create an audio element and play it with VAD monitoring
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
+        this.currentAudio = audio;
+        
+        let vadMonitor: { stop: () => void; onSpeechDetected: (callback: () => void) => void } | null = null;
+        let wasInterrupted = false;
         
         // Set up event handlers
-        audio.oncanplaythrough = () => {
+        audio.oncanplaythrough = async () => {
           console.log('Audio ready to play');
+          
+          // Start VAD monitoring when audio starts playing
+          vadMonitor = await this.startVADMonitoring();
+          vadMonitor.onSpeechDetected(() => {
+            console.log('Speech detected during TTS playback - stopping audio and starting new recording');
+            
+            // Calculate interruption position
+            const currentTime = audio.currentTime;
+            const totalTime = audio.duration;
+            const charPosition = this.calculateCharacterPosition(currentTime, totalTime, cleanText);
+            
+            // Create interrupted text
+            this.interruptedText = this.createInterruptedText(cleanText, charPosition);
+            console.log('Interrupted text:', this.interruptedText);
+            
+            // Stop the audio
+            audio.pause();
+            wasInterrupted = true;
+            
+            // Clean up
+            vadMonitor?.stop();
+            URL.revokeObjectURL(audioUrl);
+            this.currentAudio = null;
+            this.isPlayingTTS = false;
+            
+            // Trigger new recording via callback
+            if (onInterruptionCallback) {
+              onInterruptionCallback();
+            }
+            
+            resolve();
+          });
+          
+          this.isPlayingTTS = true;
+          
           audio.play().catch(error => {
             console.error('Error playing audio:', error);
+            vadMonitor?.stop();
             reject(error);
           });
         };
         
         audio.onended = () => {
           console.log('Audio playback completed');
+          vadMonitor?.stop();
           URL.revokeObjectURL(audioUrl);
-          resolve(); // Resolve the promise when audio finishes playing
+          this.currentAudio = null;
+          this.isPlayingTTS = false;
+          if (!wasInterrupted) {
+            resolve();
+          }
         };
         
         audio.onerror = (error) => {
           console.error('Audio playback error:', error);
+          vadMonitor?.stop();
           URL.revokeObjectURL(audioUrl);
+          this.currentAudio = null;
+          this.isPlayingTTS = false;
           reject(error);
         };
 
@@ -164,74 +316,27 @@ export class SpeechService {
         
       } catch (error) {
         console.error('TTS API error:', error);
-        
-        // Fallback to Web Speech API if TTS API fails
-        console.log('Falling back to Web Speech API');
-        this.fallbackToWebSpeechAsync(text).then(resolve).catch(reject);
+        reject(error);
       }
     });
   }
 
   /**
-   * Fallback to Web Speech API if TTS API fails (async version)
-   */
-  private static fallbackToWebSpeechAsync(text: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if ('speechSynthesis' in window) {
-        // Cancel any ongoing speech
-        window.speechSynthesis.cancel();
-        
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 0.9;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
-        
-        // Optional: Set a specific voice
-        const voices = window.speechSynthesis.getVoices();
-        const preferredVoice = voices.find(voice => 
-          voice.lang.startsWith('en') && voice.name.includes('Google')
-        ) || voices[0];
-        
-        if (preferredVoice) {
-          utterance.voice = preferredVoice;
-        }
-
-        // Set up event handlers
-        utterance.onend = () => {
-          console.log('Web Speech synthesis completed');
-          resolve();
-        };
-
-        utterance.onerror = (error) => {
-          console.error('Web Speech synthesis error:', error);
-          reject(error);
-        };
-
-        window.speechSynthesis.speak(utterance);
-      } else {
-        console.warn('Both TTS API and Speech synthesis failed/not supported');
-        reject(new Error('Speech synthesis not supported'));
-      }
-    });
-  }
-
-  /**
-   * Stop any ongoing audio playback or speech synthesis
+   * Stop any ongoing audio playback
    */
   static stopSpeaking(): void {
-    // Stop Web Speech API if it's running
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+    if (this.currentAudio && !this.currentAudio.paused) {
+      this.currentAudio.pause();
+      this.currentAudio.currentTime = 0;
     }
-    
-    // Stop all audio elements (this is a basic approach)
-    // In a more sophisticated implementation, you'd track the audio elements
-    const audioElements = document.querySelectorAll('audio');
-    audioElements.forEach(audio => {
-      if (!audio.paused) {
-        audio.pause();
-        audio.currentTime = 0;
-      }
-    });
+    this.currentAudio = null;
+    this.isPlayingTTS = false;
+  }
+
+  /**
+   * Check if TTS is currently playing
+   */
+  static isCurrentlyPlaying(): boolean {
+    return this.isPlayingTTS;
   }
 }
