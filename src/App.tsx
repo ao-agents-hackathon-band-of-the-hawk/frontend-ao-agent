@@ -14,9 +14,14 @@ interface Conversation {
   id: string;
   pairs: Array<{ "0": string; "1": string }>;
   timestamp: number;
+  sessionId?: string; // Unique session ID per conversation
 }
 
 const STORAGE_KEY = 'chat-conversations';
+
+function generateSessionId() {
+  return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
 
 function App() {
   const [showLanding, setShowLanding] = useState(true);
@@ -31,9 +36,9 @@ function App() {
   const [showDataModal, setShowDataModal] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   
-  // Generate session ID and ensure it's always set
-  const [sessionId] = useState(() => {
-    const id = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  // Generate session ID dynamically
+  const [sessionId, setSessionId] = useState(() => {
+    const id = generateSessionId();
     console.log('🔑 Generated Session ID:', id);
     return id;
   });
@@ -50,13 +55,13 @@ function App() {
   const isUpdatingConversations = useRef(false);
   const lastConversationsHash = useRef<string>('');
 
-  // Set session ID in services immediately and log it
+  // Update session ID in services whenever it changes
   useEffect(() => {
     console.log('🔑 Setting Session ID in services:', sessionId);
     SpeechService.setSessionId(sessionId);
     TextService.setSessionId(sessionId);
     
-    // Verify the session ID was set by checking the service methods
+    // Verify the session ID was set
     console.log('🔑 Session ID verification - Services initialized with:', sessionId);
   }, [sessionId]);
 
@@ -169,7 +174,7 @@ function App() {
           messages.push({ role: "assistant", content: pair["1"] });
         }
       });
-      return { messages };
+      return { messages, sessionId: conversation.sessionId };
     });
 
     const jsonData = JSON.stringify(exportedConversations, null, 2);
@@ -193,6 +198,7 @@ function App() {
           id: Date.now().toString(),
           pairs,
           timestamp: Date.now(),
+          sessionId: sessionId, // Store sessionId
         };
         const newPairsStr = JSON.stringify(pairs);
         isUpdatingConversations.current = true;
@@ -200,7 +206,11 @@ function App() {
           const existingIndex = prevConvos.findIndex(c => JSON.stringify(c.pairs) === newPairsStr);
           if (existingIndex !== -1) {
             const updatedConvos = [...prevConvos];
-            updatedConvos[existingIndex] = { ...updatedConvos[existingIndex], timestamp: Date.now() };
+            updatedConvos[existingIndex] = { 
+              ...updatedConvos[existingIndex], 
+              timestamp: Date.now(),
+              sessionId: updatedConvos[existingIndex].sessionId || sessionId // Preserve or set
+            };
             return updatedConvos.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
           } else {
             const updated = [newConversation, ...prevConvos];
@@ -212,7 +222,7 @@ function App() {
         }, 0);
       }
     }
-  }, [currentMessages, isSaving]);
+  }, [currentMessages, isSaving, sessionId]);
 
   const loadConversation = (id: string) => {
     const convo = conversations.find(c => c.id === id);
@@ -220,6 +230,12 @@ function App() {
       setCurrentMessages(pairsToMessages(convo.pairs));
       setIsChatMode(true);
       setIsShowHistory(false);
+      const convoSessionId = convo.sessionId || generateSessionId();
+      setSessionId(convoSessionId);
+      // Update convo with sessionId if missing for persistence
+      if (!convo.sessionId) {
+        setConversations(prev => prev.map(c => c.id === id ? { ...c, sessionId: convoSessionId } : c));
+      }
     }
   };
 
@@ -251,6 +267,7 @@ function App() {
 
   const handleLandingComplete = () => {
     setShowLanding(false);
+    setSessionId(generateSessionId()); // New session when leaving landing page
   };
 
   useEffect(() => {
@@ -261,7 +278,6 @@ function App() {
     const SCROLL_THRESHOLD = BASE_SCROLL_THRESHOLD * 1.3;
 
     const handleWheel = (e: WheelEvent) => {
-      // Ignore scroll events from chat-related areas
       const target = e.target as Element;
       if (
         target.closest('.chat-messages') ||
@@ -269,7 +285,7 @@ function App() {
         target.closest('.chat-area') ||
         target.closest('.text-mode-container')
       ) {
-        return; // Allow normal scrolling in chat areas without mode switching
+        return;
       }
 
       if (showLanding || Date.now() - lastSwitchTime.current < 300) {
@@ -290,6 +306,7 @@ function App() {
             setInputValue('');
             setCurrentMessages([]);
             setDebugInfo('Transitioning to text mode...');
+            setSessionId(generateSessionId()); // New session for text chat
           }
         } else {
           if (isTextMode) {
@@ -301,6 +318,7 @@ function App() {
             setCurrentMessages([]);
             setDebugInfo('Voice mode active');
             setIsSaving(false);
+            setSessionId(generateSessionId()); // New session for voice mode
           } else {
             setShowLanding(true);
           }
@@ -316,7 +334,6 @@ function App() {
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      // Ignore touch events from chat-related areas
       const target = e.target as Element;
       if (
         target.closest('.chat-messages') ||
@@ -324,7 +341,7 @@ function App() {
         target.closest('.chat-area') ||
         target.closest('.text-mode-container')
       ) {
-        return; // Allow normal touch scrolling in chat areas without mode switching
+        return;
       }
 
       if (showLanding || e.touches.length !== 1) {
@@ -347,6 +364,7 @@ function App() {
             setInputValue('');
             setCurrentMessages([]);
             setDebugInfo('Transitioning to text mode...');
+            setSessionId(generateSessionId()); // New session for text chat
           }
         } else {
           if (isTextMode) {
@@ -358,6 +376,7 @@ function App() {
             setCurrentMessages([]);
             setDebugInfo('Voice mode active');
             setIsSaving(false);
+            setSessionId(generateSessionId()); // New session for voice mode
           } else {
             setShowLanding(true);
           }
@@ -596,3 +615,4 @@ function App() {
 }
 
 export default App;
+
