@@ -18,11 +18,13 @@ export class SpeechService {
   }
 
   private static get SPEECH_TO_TEXT_API_URL() {
+    console.log('🎤 SpeechService: Building URL with sessionId:', this.sessionId);
     const baseUrl = `http://${this.SERVER_HOST}/~speech-to-text@1.0/transcribe/infer~wasi-nn@1.0?model-id=gemma&session_id=${this.sessionId}`;
     return this.interruptedText ? `${baseUrl}&prompt=${encodeURIComponent(this.interruptedText)}` : baseUrl;
   }
 
   private static get TEXT_TO_SPEECH_API_URL() {
+    console.log('🔊 SpeechService: Building TTS URL with sessionId:', this.sessionId);
     return `http://${this.SERVER_HOST}/~text-to-speech@1.0/generate?session_id=${this.sessionId}`;
   }
 
@@ -31,7 +33,10 @@ export class SpeechService {
    */
   static async transcribeAudio(audioBlob: Blob): Promise<SpeechResponse> {
     try {
-      const response = await fetch(this.SPEECH_TO_TEXT_API_URL, {
+      const apiUrl = this.SPEECH_TO_TEXT_API_URL;
+      console.log('🎙️ Speech-to-Text API Request URL:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         body: audioBlob,
         headers: {
@@ -203,9 +208,11 @@ export class SpeechService {
           result: cleanText
         };
 
-        console.log('Sending JSON to TTS API:', payload);
+        const apiUrl = this.TEXT_TO_SPEECH_API_URL;
+        console.log('🔊 Text-to-Speech API Request URL:', apiUrl);
+        console.log('🔊 Text-to-Speech API Request Payload:', payload);
         
-        const response = await fetch(this.TEXT_TO_SPEECH_API_URL, {
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

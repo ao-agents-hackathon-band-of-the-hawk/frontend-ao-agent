@@ -15,6 +15,7 @@ export class TextService {
   }
 
   private static get TEXT_API_URL() {
+    console.log('💬 TextService: Building URL with sessionId:', this.sessionId);
     return `http://${this.SERVER_HOST}/~wasi-nn@1.0/infer?model-id=gemma&session_id=${this.sessionId}`;
   }
 
@@ -27,9 +28,11 @@ export class TextService {
         transcription: message
       };
 
-      console.log('Sending message to Text API:', payload);
+      const apiUrl = this.TEXT_API_URL;
+      console.log('💬 Text API Request URL:', apiUrl);
+      console.log('💬 Text API Request Payload:', payload);
       
-      const response = await fetch(this.TEXT_API_URL, {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
