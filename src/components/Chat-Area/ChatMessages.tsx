@@ -28,8 +28,9 @@ interface ChatMessagesProps {
   messagePadding: string;
   maxMessageWidth: string;
   baseWidth: number;
-  onScroll?: () => void;
+  onScroll?: (e?: Event) => void;
   chatContainerRef: React.RefObject<HTMLDivElement | null>;
+  disableScrollSwitch?: boolean; // Add this prop
 }
 
 const ChatMessages: React.FC<ChatMessagesProps> = ({
@@ -46,6 +47,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   baseWidth,
   onScroll,
   chatContainerRef,
+  disableScrollSwitch = false,
 }) => {
   // Function to calculate border radius based on content
   const calculateBorderRadius = (content: string): string => {
@@ -76,6 +78,19 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
     }
     
     return '10px';
+  };
+
+  // Enhanced scroll handler that can prevent event bubbling
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (disableScrollSwitch) {
+      // Stop the event from propagating to prevent mode switching
+      e.stopPropagation();
+    }
+    
+    // Still call the onScroll callback for scrollbar syncing
+    if (onScroll) {
+      onScroll();
+    }
   };
 
   return (
@@ -119,7 +134,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
         }}
-        onScroll={onScroll}
+        onScroll={handleScroll}
       >
         {messages.map((msg, index) => (
           <div

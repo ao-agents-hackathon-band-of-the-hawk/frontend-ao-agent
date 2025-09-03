@@ -1,5 +1,7 @@
 // src/services/speechService.ts
 
+import { MicVAD } from '@ricky0123/vad-web';
+
 export interface SpeechResponse {
   transcription: string;
   result: string;
@@ -19,13 +21,13 @@ export class SpeechService {
 
   private static get SPEECH_TO_TEXT_API_URL() {
     console.log('🎤 SpeechService: Building URL with sessionId:', this.sessionId);
-    const baseUrl = `http://${this.SERVER_HOST}/~speech-to-text@1.0/transcribe/infer~wasi-nn@1.0?model-id=gemma&session_id=${this.sessionId}`;
+    const baseUrl = `https://${this.SERVER_HOST}/~speech-to-text@1.0/transcribe/infer~wasi-nn@1.0?model-id=gemma&session_id=${this.sessionId}`;
     return this.interruptedText ? `${baseUrl}&prompt=${encodeURIComponent(this.interruptedText)}` : baseUrl;
   }
 
   private static get TEXT_TO_SPEECH_API_URL() {
     console.log('🔊 SpeechService: Building TTS URL with sessionId:', this.sessionId);
-    return `http://${this.SERVER_HOST}/~text-to-speech@1.0/generate?session_id=${this.sessionId}`;
+    return `https://${this.SERVER_HOST}/~text-to-speech@1.0/generate?session_id=${this.sessionId}`;
   }
 
   /**
@@ -126,59 +128,67 @@ export class SpeechService {
   }
 
   /**
-   * Check if user is speaking using a simple VAD approach
+   * Check if user is speaking using VAD from @ricky0123/vad-web
    */
   private static async startVADMonitoring(): Promise<{ stop: () => void; onSpeechDetected: (callback: () => void) => void }> {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const audioContext = new AudioContext();
-      const analyser = audioContext.createAnalyser();
-      const microphone = audioContext.createMediaStreamSource(stream);
-      
-      analyser.fftSize = 256;
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      
-      microphone.connect(analyser);
-      
+      const myVad = await MicVAD.new({
+        positiveSpeechThreshold: 0.6,
+        negativeSpeechThreshold: 0.3,
+        minSpeechFrames: 3,
+        preSpeechPadFrames: 4,
+        redemptionFrames: 10,
+        onSpeechStart: () => {
+          console.log('Speech started during TTS');
+        },
+        onSpeechEnd: (audio: Float32Array) => {
+          console.log('Speech ended during TTS, audio length:', audio.length);
+        },
+        onVADMisfire: () => {
+          console.log('VAD misfire during TTS');
+        },
+      });
+
       let speechCallback: (() => void) | null = null;
-      let isMonitoring = true;
-      let speechStartTime = 0;
       let isSpeechDetected = false;
-      
-      const checkAudioLevel = () => {
-        if (!isMonitoring) return;
-        
-        analyser.getByteFrequencyData(dataArray);
-        const average = dataArray.reduce((a, b) => a + b) / bufferLength;
-        
-        const SPEECH_THRESHOLD = 30; // Adjust based on testing
-        
-        if (average > SPEECH_THRESHOLD) {
-          if (!isSpeechDetected) {
-            isSpeechDetected = true;
-            speechStartTime = Date.now();
-          }
-          
-          // Check if speech has been continuous for 2 seconds
-          if (Date.now() - speechStartTime > 2000) {
-            speechCallback?.();
-            return; // Stop monitoring after callback
-          }
-        } else {
-          isSpeechDetected = false;
+      let detectionTimeout: NodeJS.Timeout | null = null;
+
+      myVad.options.onSpeechStart = () => {
+        isSpeechDetected = true;
+        console.log('Speech start detected');
+
+        if (detectionTimeout) {
+          clearTimeout(detectionTimeout);
         }
-        
-        requestAnimationFrame(checkAudioLevel);
+
+        detectionTimeout = setTimeout(() => {
+          if (isSpeechDetected) {
+            console.log('Continuous speech detected for 1s - interrupting');
+            speechCallback?.();
+          }
+        }, 1000); // Interrupt after 1 second of continuous speech
       };
-      
-      checkAudioLevel();
-      
+
+      myVad.options.onSpeechEnd = () => {
+        isSpeechDetected = false;
+        console.log('Speech end detected');
+        if (detectionTimeout) {
+          clearTimeout(detectionTimeout);
+          detectionTimeout = null;
+        }
+      };
+
+      myVad.start();
+
       return {
         stop: () => {
-          isMonitoring = false;
-          stream.getTracks().forEach(track => track.stop());
-          audioContext.close();
+          myVad.pause();
+          if ('destroy' in myVad) {
+            (myVad as any).destroy();
+          }
+          if (detectionTimeout) {
+            clearTimeout(detectionTimeout);
+          }
         },
         onSpeechDetected: (callback: () => void) => {
           speechCallback = callback;
@@ -186,7 +196,7 @@ export class SpeechService {
       };
     } catch (error) {
       console.error('Failed to start VAD monitoring:', error);
-      // Return dummy implementation if microphone access fails
+      // Return dummy implementation if VAD setup fails
       return {
         stop: () => {},
         onSpeechDetected: () => {}
@@ -237,15 +247,15 @@ export class SpeechService {
         // Create a Blob from the audio data
         const audioBlob = new Blob([audioArrayBuffer], { type: 'audio/wav' });
         
-        // Download the received audio file
-        const downloadUrl = URL.createObjectURL(audioBlob);
-        const downloadLink = document.createElement('a');
-        downloadLink.href = downloadUrl;
-        downloadLink.download = `tts_response_${Date.now()}.wav`;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-        URL.revokeObjectURL(downloadUrl);
+        // Optional: Download the received audio file (comment out if not needed for production)
+        // const downloadUrl = URL.createObjectURL(audioBlob);
+        // const downloadLink = document.createElement('a');
+        // downloadLink.href = downloadUrl;
+        // downloadLink.download = `tts_response_${Date.now()}.wav`;
+        // document.body.appendChild(downloadLink);
+        // downloadLink.click();
+        // document.body.removeChild(downloadLink);
+        // URL.revokeObjectURL(downloadUrl);
         
         // Create an audio element and play it with VAD monitoring
         const audioUrl = URL.createObjectURL(audioBlob);

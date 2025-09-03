@@ -1,4 +1,4 @@
-// src/hooks/useVoiceLogic.ts
+// src/hooks/useVoiceLogic.ts - Unified Storage Version
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
 import { SpeechService } from '../services/speechService';
@@ -15,8 +15,6 @@ interface UseVoiceLogicProps {
   }>) => void; // Callback to update parent conversations
 }
 
-const STORAGE_KEY = 'chat-conversations'; // Use same storage as text mode
-
 export const useVoiceLogic = ({ onAudioReady, sessionId, onConversationUpdate }: UseVoiceLogicProps) => {
   // State management
   const [voiceState, setVoiceState] = useState<VoiceState>('awakening');
@@ -24,13 +22,6 @@ export const useVoiceLogic = ({ onAudioReady, sessionId, onConversationUpdate }:
   const [audioChunks, setAudioChunks] = useState<Float32Array[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [, setDebugInfo] = useState('Voice mode ready');
-  
-  // Voice conversation storage - use same format as text mode
-  const [conversations, setConversations] = useState<Array<{
-    id: string;
-    pairs: Array<{ "0": string; "1": string }>;
-    timestamp?: number;
-  }>>([]);
   
   // Add a ref to track if processing is already happening
   const isProcessingRef = useRef(false);
@@ -42,77 +33,77 @@ export const useVoiceLogic = ({ onAudioReady, sessionId, onConversationUpdate }:
   // Audio processing
   const sampleRate = 16000; // VAD outputs at 16kHz
   
-  // Load conversations from localStorage on component mount
-  useEffect(() => {
-    const loadConversationsFromStorage = () => {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          const parsedConversations = JSON.parse(stored);
-          parsedConversations.sort((a: any, b: any) => (b.timestamp || 0) - (a.timestamp || 0));
-          setConversations(parsedConversations);
-          console.log('Loaded conversations from localStorage:', parsedConversations.length);
-        }
-      } catch (error) {
-        console.error('Error loading conversations from localStorage:', error);
-        localStorage.removeItem(STORAGE_KEY);
-      }
-    };
-    loadConversationsFromStorage();
-  }, []);
-
-  // Save conversations to localStorage whenever conversations array changes
-  useEffect(() => {
-    if (conversations.length > 0) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
-        console.log('Saved conversations to localStorage:', conversations.length);
-        
-        // Notify parent component of the update
-        onConversationUpdate?.(conversations);
-        
-      } catch (error) {
-        console.error('Error saving conversations to localStorage:', error);
-        if (error instanceof Error && error.name === 'QuotaExceededError') {
-          const reducedConversations = conversations.slice(0, Math.floor(conversations.length * 0.8));
-          setConversations(reducedConversations);
-          console.log('Storage quota exceeded. Reduced conversations to:', reducedConversations.length);
-        }
-      }
-    }
-  }, [conversations, onConversationUpdate]);
-  
-  // Function to save voice interaction immediately
+  // Function to save voice interaction directly to localStorage and notify parent
   const saveVoiceInteraction = useCallback((userMessage: string, aiResponse: string) => {
     if (!userMessage || !aiResponse) return;
     
-    setConversations(prevConvos => {
+    try {
+      // Get current conversations from localStorage (unified storage)
+      const stored = localStorage.getItem('chat-conversations');
+      const currentConversations = stored ? JSON.parse(stored) : [];
+      
       // Look for existing voice conversation for this session
-      const existingVoiceConvoIndex = prevConvos.findIndex(c => c.id === `voice_${sessionId}`);
+      const existingVoiceConvoIndex = currentConversations.findIndex((c: any) => c.id === `voice_${sessionId}`);
+      
+      let updatedConversations;
       
       if (existingVoiceConvoIndex !== -1) {
         // Update existing voice conversation
-        const updatedConvos = [...prevConvos];
-        const existingConvo = updatedConvos[existingVoiceConvoIndex];
-        updatedConvos[existingVoiceConvoIndex] = {
+        updatedConversations = [...currentConversations];
+        const existingConvo = updatedConversations[existingVoiceConvoIndex];
+        updatedConversations[existingVoiceConvoIndex] = {
           ...existingConvo,
           pairs: [...existingConvo.pairs, { "0": userMessage, "1": aiResponse }],
           timestamp: Date.now()
         };
         // Move to top (newest first)
-        return [updatedConvos[existingVoiceConvoIndex], ...updatedConvos.filter((_, i) => i !== existingVoiceConvoIndex)]
-          .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        const updatedConvo = updatedConversations.splice(existingVoiceConvoIndex, 1)[0];
+        updatedConversations.unshift(updatedConvo);
       } else {
         // Create new voice conversation for this session
         const newConversation = {
           id: `voice_${sessionId}`,
           pairs: [{ "0": userMessage, "1": aiResponse }],
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          sessionId: sessionId
         };
-        return [newConversation, ...prevConvos].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        updatedConversations = [newConversation, ...currentConversations];
       }
-    });
-  }, [sessionId]);
+      
+      // Sort by timestamp (newest first)
+      updatedConversations.sort((a: any, b: any) => (b.timestamp || 0) - (a.timestamp || 0));
+      
+      // Save to localStorage
+      localStorage.setItem('chat-conversations', JSON.stringify(updatedConversations));
+      console.log('Voice interaction saved to unified storage:', updatedConversations.length, 'total conversations');
+      
+      // Notify parent component of the update
+      if (onConversationUpdate) {
+        onConversationUpdate(updatedConversations);
+      }
+      
+    } catch (error) {
+      console.error('Error saving voice interaction to unified storage:', error);
+      
+      // Handle storage quota exceeded
+      if (error instanceof Error && error.name === 'QuotaExceededError') {
+        try {
+          const stored = localStorage.getItem('chat-conversations');
+          if (stored) {
+            const conversations = JSON.parse(stored);
+            const reducedConversations = conversations.slice(0, Math.floor(conversations.length * 0.8));
+            localStorage.setItem('chat-conversations', JSON.stringify(reducedConversations));
+            console.log('Storage quota exceeded. Reduced conversations to:', reducedConversations.length);
+            
+            // Retry saving the voice interaction
+            saveVoiceInteraction(userMessage, aiResponse);
+          }
+        } catch (retryError) {
+          console.error('Failed to handle storage quota exceeded:', retryError);
+        }
+      }
+    }
+  }, [sessionId, onConversationUpdate]);
   
   // Update ref when state changes
   useEffect(() => {
@@ -259,16 +250,6 @@ export const useVoiceLogic = ({ onAudioReady, sessionId, onConversationUpdate }:
     
     onAudioReady?.(wavBlob);
     
-    // Download the audio file
-    const url = URL.createObjectURL(wavBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `voice_recording_${Date.now()}.wav`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
     // Send to speech API
     try {
       setVoiceState('waiting_response');
@@ -280,7 +261,7 @@ export const useVoiceLogic = ({ onAudioReady, sessionId, onConversationUpdate }:
       
       // Save voice interaction immediately after getting response (before TTS)
       if (response.transcription && response.result) {
-        console.log('Saving voice interaction immediately...');
+        console.log('Saving voice interaction to unified storage...');
         saveVoiceInteraction(response.transcription, response.result);
       }
       
@@ -398,7 +379,6 @@ export const useVoiceLogic = ({ onAudioReady, sessionId, onConversationUpdate }:
     audioChunks,
     isRecording,
     vad,
-    conversations, // Expose conversations (same as text mode)
     handleSphereClick,
     getStateDisplay,
     startListening,
