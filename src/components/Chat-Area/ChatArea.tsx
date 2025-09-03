@@ -26,7 +26,9 @@ interface ChatAreaProps {
   clearAllConversations: () => void;
   isShowHistory: boolean;
   setIsShowHistory: (show: boolean) => void;
-  isLoading?: boolean; // Add this prop to indicate when waiting for response
+  isLoading?: boolean;
+  onBackToVoiceMode: () => void;
+  disableScrollSwitch?: boolean; // New prop to disable scroll switching
 }
 
 const ChatArea: React.FC<ChatAreaProps> = ({
@@ -41,7 +43,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   clearAllConversations,
   isShowHistory,
   setIsShowHistory,
-  isLoading = false
+  isLoading = false,
+  onBackToVoiceMode,
+  disableScrollSwitch = false,
 }) => {
   const theme = useTheme();
   const [textareaHeight, setTextareaHeight] = useState(24);
@@ -171,6 +175,16 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     return msgs;
   }, [messages, isLoading, thinkingDots]);
 
+  // Modified scroll handler to conditionally prevent scroll switching
+  const handleScroll = () => {
+    if (!disableScrollSwitch) {
+      syncScrollbarPosition();
+    } else {
+      // Still sync scrollbar position but don't trigger mode switching
+      syncScrollbarPosition();
+    }
+  };
+
   return (
     <div
       style={{
@@ -208,8 +222,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({
         messagePadding={CHAT_CONFIG.messagePadding}
         maxMessageWidth={CHAT_CONFIG.maxMessageWidth}
         baseWidth={baseWidth}
-        onScroll={syncScrollbarPosition}
+        onScroll={handleScroll}
         chatContainerRef={chatContainerRef}
+        disableScrollSwitch={disableScrollSwitch} // Pass the prop to ChatMessages
       />
 
       {/* Chat Scrollbar */}
@@ -264,7 +279,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
         {/* Static sphere */}
         <div
-          onClick={onSend}
+          onClick={onBackToVoiceMode}
           style={{
             ...sphereStyle,
             width: `${sphereSize}px`,

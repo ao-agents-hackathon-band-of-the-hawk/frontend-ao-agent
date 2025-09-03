@@ -36,6 +36,9 @@ function App() {
   const [showDataModal, setShowDataModal] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   
+  // Add state to track when we're in voice history chat mode
+  const [isVoiceHistoryMode, setIsVoiceHistoryMode] = useState(false);
+  
   // Generate session ID dynamically
   const [sessionId, setSessionId] = useState(() => {
     const id = generateSessionId();
@@ -230,6 +233,12 @@ function App() {
       setCurrentMessages(pairsToMessages(convo.pairs));
       setIsChatMode(true);
       setIsShowHistory(false);
+      
+      // Set voice history mode if we're not already in text mode
+      if (!isTextMode) {
+        setIsVoiceHistoryMode(true);
+      }
+      
       const convoSessionId = convo.sessionId || generateSessionId();
       setSessionId(convoSessionId);
       // Update convo with sessionId if missing for persistence
@@ -283,9 +292,12 @@ function App() {
       setIsSaving(false);
       setSessionId(generateSessionId()); // New session for voice mode
     }
+    
+    // Always reset voice history mode when going back to voice mode
+    setIsVoiceHistoryMode(false);
   };
 
-  // Scroll navigation - only active in voice mode
+  // Scroll navigation - completely disabled in voice history mode
   useEffect(() => {
     const lastSwitchTime = { current: 0 };
     const touchStartY = { current: 0 };
@@ -295,6 +307,11 @@ function App() {
 
     const handleWheel = (e: WheelEvent) => {
       const target = e.target as Element;
+      
+      // COMPLETELY DISABLE scroll navigation in voice history mode
+      if (isVoiceHistoryMode) {
+        return;
+      }
       
       // Only allow scroll navigation in voice mode AND when history is not shown
       if (isTextMode || isChatMode || isShowHistory) {
@@ -342,6 +359,11 @@ function App() {
 
     const handleTouchMove = (e: TouchEvent) => {
       const target = e.target as Element;
+      
+      // COMPLETELY DISABLE touch navigation in voice history mode
+      if (isVoiceHistoryMode) {
+        return;
+      }
       
       // Only allow touch navigation in voice mode AND when history is not shown
       if (isTextMode || isChatMode || isShowHistory) {
@@ -396,6 +418,7 @@ function App() {
       }
     };
 
+    // Add event listeners with the isVoiceHistoryMode dependency
     window.addEventListener('wheel', handleWheel, { passive: false });
     window.addEventListener('touchstart', handleTouchStart, { passive: false });
     window.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -405,7 +428,7 @@ function App() {
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchmove', handleTouchMove);
     };
-  }, [showLanding, isTextMode, isChatMode, isShowHistory, saveCurrentConversation]);
+  }, [showLanding, isTextMode, isChatMode, isShowHistory, isVoiceHistoryMode, saveCurrentConversation]); // Add isVoiceHistoryMode to dependencies
 
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -514,7 +537,7 @@ function App() {
           </div>
           <div className="mb-2 text-yellow-300 font-semibold">Voice Mode Debug Panel</div>
           <div>Status: {debugInfo}</div>
-          <div>Mode: {isTextMode ? 'Text' : 'Voice'}</div>
+          <div>Mode: {isTextMode ? 'Text' : isVoiceHistoryMode ? 'Voice History' : 'Voice'}</div>
           <div>Session ID: <span className="text-green-300">{sessionId}</span></div>
           <div>Conversations: {storageInfo.conversations} ({storageInfo.sizeKB} KB)</div>
           {!isTextMode && (
