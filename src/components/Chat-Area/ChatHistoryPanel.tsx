@@ -15,12 +15,27 @@ interface ChatHistoryPanelProps {
   onClearAll: () => void;
 }
 
-// Helper components for icons and hover states
+// Enhanced icons with better styling
 const DeleteIcon = ({ color }: { color: string }) => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="18" y1="6" x2="6" y2="18"></line>
-        <line x1="6" y1="6" x2="18" y2="18"></line>
-    </svg>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18"></line>
+    <line x1="6" y1="6" x2="18" y2="18"></line>
+  </svg>
+);
+
+const ChatIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+  </svg>
+);
+
+const CalendarIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+    <line x1="16" y1="2" x2="16" y2="6"></line>
+    <line x1="8" y1="2" x2="8" y2="6"></line>
+    <line x1="3" y1="10" x2="21" y2="10"></line>
+  </svg>
 );
 
 const ConversationItem: React.FC<{
@@ -36,34 +51,34 @@ const ConversationItem: React.FC<{
 
     const itemStyle: React.CSSProperties = {
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '12px 16px',
-        borderRadius: '10px',
-        backgroundColor: isItemHovered ? '#F7F7F7' : '#FFFFFF',
+        alignItems: 'flex-start',
+        padding: '16px',
+        borderRadius: '12px',
+        backgroundColor: isItemHovered ? '#ffffff' : '#f8fafc',
         cursor: 'pointer',
-        transition: 'background-color 0.2s, transform 0.2s',
-        transform: isItemHovered ? 'translateY(-2px)' : 'none',
-        border: '1px solid #E0E0E0',
+        transition: 'all 0.2s ease-in-out',
+        transform: isItemHovered ? 'translateY(-1px)' : 'none',
+        border: '1px solid #e2e8f0',
+        boxShadow: isItemHovered ? '0 4px 12px rgba(0,0,0,0.08)' : '0 1px 3px rgba(0,0,0,0.04)',
+        gap: '12px',
     };
     
     const deleteButtonStyle: React.CSSProperties = {
-        marginLeft: '12px',
-        padding: '4px',
+        padding: '6px',
         background: isDeleteHovered ? '#fef2f2' : 'transparent',
         border: 'none',
-        borderRadius: '50%',
+        borderRadius: '8px',
         cursor: 'pointer',
         flexShrink: 0,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        transition: 'color 0.2s, background-color 0.2s',
+        transition: 'all 0.2s ease-in-out',
+        opacity: isItemHovered ? 1 : 0.6,
     };
 
     return (
         <div 
-          key={convo.id}
           style={itemStyle}
           onMouseEnter={() => setItemHovered(true)}
           onMouseLeave={() => setItemHovered(false)}
@@ -73,11 +88,17 @@ const ConversationItem: React.FC<{
             style={{ flex: 1, minWidth: 0 }}
           >
             <div style={styles.convoTitle}>
-              {firstMessage.length > 40 ? `${firstMessage.slice(0, 40)}...` : firstMessage}
+              {firstMessage.length > 45 ? `${firstMessage.slice(0, 45)}...` : firstMessage}
             </div>
             <div style={styles.convoMeta}>
-              <span>{messageCount} message{messageCount !== 1 ? 's' : ''}</span>
-              <span>{new Date(convo.timestamp || 0).toLocaleDateString()}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <ChatIcon />
+                <span>{messageCount} message{messageCount !== 1 ? 's' : ''}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <CalendarIcon />
+                <span>{new Date(convo.timestamp || 0).toLocaleDateString()}</span>
+              </div>
             </div>
           </div>
           <button
@@ -90,7 +111,7 @@ const ConversationItem: React.FC<{
             onMouseLeave={() => setDeleteHovered(false)}
             title="Delete conversation"
           >
-            <DeleteIcon color={isDeleteHovered ? '#e53e3e' : '#aaa'} />
+            <DeleteIcon color={isDeleteHovered ? '#ef4444' : '#94a3b8'} />
           </button>
         </div>
     );
@@ -109,13 +130,18 @@ const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
 
   const clearButtonStyle: React.CSSProperties = {
       ...styles.clearButton,
-      backgroundColor: isClearHovered ? '#d71515ff' : '#b91919ff',
+      backgroundColor: isClearHovered ? '#ef4444' : '#f87171',
+      transform: isClearHovered ? 'translateY(-1px)' : 'none',
+      boxShadow: isClearHovered ? '0 4px 12px rgba(239, 68, 68, 0.3)' : '0 2px 4px rgba(248, 113, 113, 0.2)',
   };
 
   return (
     <div style={styles.panel}>
       <div style={styles.header}>
-        <h4 style={styles.title}>Chat History</h4>
+        <div style={styles.titleContainer}>
+          <h4 style={styles.title}>Chat History</h4>
+          <div style={styles.titleUnderline}></div>
+        </div>
         {conversations.length > 0 && (
           <button
             onClick={onClearAll}
@@ -130,7 +156,9 @@ const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
       <div style={styles.listContainer}>
         {conversations.length === 0 ? (
           <div style={styles.emptyMessage}>
-            No past conversations
+            <div style={styles.emptyIcon}>💬</div>
+            <div>No conversations yet</div>
+            <div style={styles.emptySubtext}>Your chat history will appear here</div>
           </div>
         ) : (
           <div style={styles.conversationList}>
@@ -149,85 +177,104 @@ const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
   );
 };
 
-// All styles are now defined as JS objects
+// Enhanced styles with modern design
 const styles: { [key: string]: React.CSSProperties } = {
   panel: {
     position: 'absolute',
-    top: '50px',
-    left: '0',
-    backgroundColor: '#b6c37f',
-    padding: '1.5rem',
+    top: '60px',
+    right: '40', // Changed from left: '0' to right: '0' to position on the right
+    backgroundColor: '#ffffff',
+    padding: '24px',
     borderRadius: '16px',
-    minWidth: '300px',
-    maxWidth: '300px',
-    maxHeight: '450px',
+    minWidth: '320px',
+    maxWidth: '320px',
+    maxHeight: '500px',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
     zIndex: 30,
-    fontFamily: "'Open Sans', sans-serif",
-    boxShadow: '0 8px 25px rgba(0,0,0,0.1)',
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif",
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+    border: '1px solid #e5e7eb',
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1rem',
-    padding: '0 0.5rem',
+    alignItems: 'flex-start',
+    marginBottom: '24px',
+    gap: '16px',
+  },
+  titleContainer: {
+    flex: 1,
   },
   title: {
     margin: 0,
-    color: '#495038',
-    fontSize: '1.25rem',
+    color: '#1f2937',
+    fontSize: '1.375rem',
     fontWeight: 700,
+    textAlign: 'right', // Changed to align title to the right
+    marginTop: '4px', // Added margin to bring it down slightly
   },
   clearButton: {
-    padding: '6px 12px',
+    padding: '8px 16px',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '10px',
     cursor: 'pointer',
-    fontSize: '0.8rem',
-    fontWeight: 500,
-    transition: 'background-color 0.2s',
+    fontSize: '0.875rem',
+    fontWeight: 600,
+    transition: 'all 0.2s ease-in-out',
+    flexShrink: 0,
   },
   listContainer: {
-    maxHeight: '100%',
+    flex: 1,
     overflowY: 'auto',
     paddingRight: '8px',
+    marginRight: '-8px',
   },
   emptyMessage: {
-    color: '#737373',
-    fontStyle: 'italic',
+    color: '#6b7280',
     textAlign: 'center',
-    padding: '3rem 1rem',
-    fontSize: '0.9rem',
+    padding: '48px 24px',
+    fontSize: '0.875rem',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  emptyIcon: {
+    fontSize: '2rem',
+    marginBottom: '8px',
+    opacity: 0.6,
+  },
+  emptySubtext: {
+    fontSize: '0.75rem',
+    color: '#9ca3af',
   },
   conversationList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px',
-  },
-  convoInfo: {
-    flex: 1,
-    minWidth: 0,
+    gap: '12px',
   },
   convoTitle: {
     fontSize: '0.9rem',
-    fontWeight: 700,
-    color: '#333',
-    marginBottom: '6px',
+    fontWeight: 600,
+    color: '#1f2937',
+    marginBottom: '8px',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
+    lineHeight: 1.4,
+    textAlign: 'left', // Explicitly align text to the left
   },
   convoMeta: {
     fontSize: '0.75rem',
-    color: '#737373',
+    color: '#6b7280',
     display: 'flex',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    fontWeight: 500,
   },
 };
 
 export default ChatHistoryPanel;
-
