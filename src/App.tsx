@@ -314,7 +314,7 @@ function App() {
       }
       
       // Only allow scroll navigation in voice mode AND when history is not shown
-      if (isTextMode || isChatMode || isShowHistory) {
+      if (isTextMode || isChatMode || isShowHistory || isVoiceHistoryMode) {
         return;
       }
       

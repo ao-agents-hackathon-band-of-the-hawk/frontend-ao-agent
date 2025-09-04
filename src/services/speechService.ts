@@ -21,8 +21,15 @@ export class SpeechService {
 
   private static get SPEECH_TO_TEXT_API_URL() {
     console.log('🎤 SpeechService: Building URL with sessionId:', this.sessionId);
-    const baseUrl = `https://${this.SERVER_HOST}/~speech-to-text@1.0/transcribe/infer~wasi-nn@1.0?model-id=gemma&session_id=${this.sessionId}`;
-    return this.interruptedText ? `${baseUrl}&prompt=${encodeURIComponent(this.interruptedText)}` : baseUrl;
+    const baseUrl = `https://${this.SERVER_HOST}/~speech-to-text@1.0/transcribe/infer~wasi-nn@1.0?session_id=${this.sessionId}`;
+    
+    if (this.interruptedText) {
+      // For interrupted speech - include the interrupted text and concise response instruction
+      return `${baseUrl}&prompt=${encodeURIComponent(this.interruptedText)}`;
+    } else {
+      // For regular speech - just the base URL with concise response instruction
+      return `${baseUrl}&prompt=You are a concise assistant.`;
+    }
   }
 
   private static get TEXT_TO_SPEECH_API_URL() {
@@ -73,30 +80,32 @@ export class SpeechService {
    * Clean markdown formatting from text
    */
   private static cleanMarkdownText(text: string): string {
-    return text
-      .trim()
-      // Remove thinking tokens
-      .replace(/<think>[\s\S]*?<\/think>/g, '')
-      // Remove markdown formatting
-      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold **text**
-      .replace(/\*(.*?)\*/g, '$1') // Remove italic *text*
-      .replace(/__(.*?)__/g, '$1') // Remove bold __text__
-      .replace(/_(.*?)_/g, '$1') // Remove italic _text_
-      .replace(/`{3}[\s\S]*?`{3}/g, '') // Remove code blocks ```code```
-      .replace(/`(.*?)`/g, '$1') // Remove inline code `code`
-      .replace(/#{1,6}\s/g, '') // Remove headers # ## ### etc.
-      .replace(/>\s/g, '') // Remove blockquotes >
-      .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Remove links [text](url) - keep text
-      .replace(/!\[.*?\]\(.*?\)/g, '') // Remove images ![alt](url)
-      .replace(/^\s*[-*+]\s/gm, '') // Remove list bullets - * +
-      .replace(/^\s*\d+\.\s/gm, '') // Remove numbered lists 1. 2. etc.
-      .replace(/\|/g, ' ') // Remove table separators |
-      .replace(/[-=]{3,}/g, '') // Remove horizontal rules ---
-      .replace(/~{2}(.*?)~{2}/g, '$1') // Remove strikethrough ~~text~~
-      .replace(/\n/g, ' ') // Replace line breaks with spaces
-      .replace(/\s+/g, ' '); // Replace multiple spaces with single space
-  }
-
+  return text
+    .trim()
+    // Remove thinking tokens
+    .replace(/<think>[\s\S]*?<\/think>/g, '')
+    // Remove markdown formatting
+    .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold **text**
+    .replace(/\*(.*?)\*/g, '$1') // Remove italic *text*
+    .replace(/__(.*?)__/g, '$1') // Remove bold __text__
+    .replace(/_(.*?)_/g, '$1') // Remove italic _text_
+    .replace(/`{3}[\s\S]*?`{3}/g, '') // Remove code blocks ```code```
+    .replace(/`(.*?)`/g, '$1') // Remove inline code `code`
+    .replace(/#{1,6}\s/g, '') // Remove headers # ## ### etc.
+    .replace(/>\s/g, '') // Remove blockquotes >
+    .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Remove links [text](url) - keep text
+    .replace(/!\[.*?\]\(.*?\)/g, '') // Remove images ![alt](url)
+    .replace(/^\s*[-*+]\s/gm, '') // Remove list bullets - * +
+    .replace(/^\s*\d+\.\s/gm, '') // Remove numbered lists 1. 2. etc.
+    .replace(/\|/g, ' ') // Remove table separators |
+    .replace(/[-=]{3,}/g, '') // Remove horizontal rules ---
+    .replace(/~{2}(.*?)~{2}/g, '$1') // Remove strikethrough ~~text~~
+    .replace(/\n/g, ' ') // Replace line breaks with spaces
+    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+    .replace(/[^a-zA-Z\s]/g, '') // Remove everything except alphabets and spaces
+    .replace(/\s+/g, ' ') // Clean up multiple spaces again after character removal
+    .trim(); // Final trim
+}
   /**
    * Calculate character position based on audio playback time
    */
