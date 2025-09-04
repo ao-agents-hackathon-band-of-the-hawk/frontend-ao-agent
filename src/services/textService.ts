@@ -16,7 +16,7 @@ export class TextService {
 
   private static get TEXT_API_URL() {
     console.log('💬 TextService: Building URL with sessionId:', this.sessionId);
-    return `https://${this.SERVER_HOST}/~wasi-nn@1.0/infer?model-id=gemma&session_id=${this.sessionId}`;
+    return `https://${this.SERVER_HOST}/~wasi-nn@1.0/infer?&session_id=${this.sessionId}`;
   }
 
   /**
