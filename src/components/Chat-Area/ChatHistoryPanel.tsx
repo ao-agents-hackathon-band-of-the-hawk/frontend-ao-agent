@@ -6,6 +6,7 @@ interface Conversation {
   id: string;
   pairs: Array<{ "0": string; "1": string }>;
   timestamp?: number;
+  sessionId?: string;
 }
 
 interface ChatHistoryPanelProps {
@@ -127,23 +128,23 @@ const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
 }) => {
   const [isClearHovered, setClearHovered] = useState(false);
   const [isFineTuneHovered, setFineTuneHovered] = useState(false);
-  const [showFineTune, setShowFineTune] = useState(false); // State to toggle FineTune component
+  const [showFineTune, setShowFineTune] = useState(false);
 
   if (!isVisible) return null;
 
   // Handle Fine Tune button click
   const handleFineTune = () => {
-    setShowFineTune(true); // Show FineTune component
+    setShowFineTune(true);
   };
 
   // Handle Back to Chat from FineTune
   const handleBackToChat = () => {
-    setShowFineTune(false); // Show ChatHistoryPanel again
+    setShowFineTune(false);
   };
 
   // Render FineTune if showFineTune is true, otherwise render ChatHistoryPanel
   if (showFineTune) {
-    return <FineTune onBackToChat={handleBackToChat} />;
+    return <FineTune conversations={conversations} onBackToChat={handleBackToChat} />;
   }
 
   const clearButtonStyle: React.CSSProperties = {
@@ -198,18 +199,20 @@ const ChatHistoryPanel: React.FC<ChatHistoryPanelProps> = ({
         )}
       </div>
       
-      {/* Fine Tune Button - always shown */}
-      <div style={styles.fineTuneContainer}>
-        <button
-          onClick={handleFineTune}
-          style={fineTuneButtonStyle}
-          onMouseEnter={() => setFineTuneHovered(true)}
-          onMouseLeave={() => setFineTuneHovered(false)}
-          title="Fine-tune model with conversation history"
-        >
-          <span>Fine Tune</span>
-        </button>
-      </div>
+      {/* Fine Tune Button - only show if there are conversations */}
+      {conversations.length > 0 && (
+        <div style={styles.fineTuneContainer}>
+          <button
+            onClick={handleFineTune}
+            style={fineTuneButtonStyle}
+            onMouseEnter={() => setFineTuneHovered(true)}
+            onMouseLeave={() => setFineTuneHovered(false)}
+            title="Fine-tune model with conversation history"
+          >
+            <span>Fine Tune</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };
